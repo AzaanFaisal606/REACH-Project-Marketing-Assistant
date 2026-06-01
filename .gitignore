@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.*
+*.local
+.DS_Store
+
+# Claude / tooling — never commit into this repo
+CLAUDE.md
+.claude/
+.superpowers/
+.worktrees/
+
+# Cloudflare wrangler local state
+worker/.wrangler/
+.dev.vars
