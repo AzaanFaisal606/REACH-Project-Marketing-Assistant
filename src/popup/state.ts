@@ -2,6 +2,9 @@ import { signal } from "@preact/signals";
 import { storage } from "@/lib/storage/storage";
 import type { ProviderId } from "@/lib/providers/types";
 import type { ProjectSummary } from "@/lib/analysis/types";
+import { getProvider } from "@/lib/providers";
+import { generate } from "@/lib/providers/types";
+import { analyze } from "@/lib/analysis/analyze";
 
 export type TabId = "reddit" | "x" | "linkedin";
 
@@ -35,4 +38,25 @@ export async function saveApiKey(key: string): Promise<void> {
 export async function saveSummary(s: ProjectSummary): Promise<void> {
   appState.summary.value = s;
   await storage.setSummary(s);
+}
+
+export const analyzing = signal<boolean>(false);
+
+export async function runAnalysis(projectContext: string): Promise<void> {
+  if (!appState.apiKey.value) {
+    appState.status.value = "Add your API key in Settings first.";
+    return;
+  }
+  analyzing.value = true;
+  appState.status.value = "Analyzing project…";
+  try {
+    const provider = getProvider(appState.providerId.value);
+    const summary = await analyze(projectContext, provider, appState.apiKey.value, generate);
+    await saveSummary(summary);
+    appState.status.value = "Analysis ready.";
+  } catch (e) {
+    appState.status.value = `Analysis failed: ${(e as Error).message}`;
+  } finally {
+    analyzing.value = false;
+  }
 }
