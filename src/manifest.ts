@@ -7,7 +7,7 @@ export default defineManifest({
   description: "Turn your repo or README into a Reddit launch post.",
   action: { default_popup: "index.html" },
   background: { service_worker: "src/background/service-worker.ts", type: "module" },
-  permissions: ["storage", "identity"],
+  permissions: ["storage", "identity", "tabs"],
   host_permissions: [
     "https://api.github.com/*",
     "https://www.reddit.com/*",

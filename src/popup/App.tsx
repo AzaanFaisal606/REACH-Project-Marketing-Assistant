@@ -2,6 +2,7 @@ import { useState, useEffect } from "preact/hooks";
 import { hydrate } from "./state";
 import { Settings } from "./components/Settings";
 import { InputPanel } from "./components/InputPanel";
+import { RedditTab } from "./tabs/RedditTab";
 
 export function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -20,7 +21,7 @@ export function App() {
       ) : (
         <main class="body">
           <InputPanel />
-          <section class="reddit-slot">Reddit tab goes here</section>
+          <RedditTab />
         </main>
       )}
     </div>
