@@ -1,7 +1,8 @@
 import { useState } from "preact/hooks";
-import { runAnalysis, analyzing, appState } from "../state";
+import { runAnalysis, analyzing, appState, connectGithub } from "../state";
 import { parseRepoUrl } from "@/lib/github/parse-url";
 import { fetchRepoContext } from "@/lib/github/fetch-repo";
+import { storage } from "@/lib/storage/storage";
 import { readFileText } from "./read-file";
 export { readFileText };
 
@@ -14,8 +15,19 @@ export function InputPanel() {
     const ref = parseRepoUrl(repoUrl);
     if (!ref) { setRepoErr("Enter a valid GitHub URL or owner/repo."); return; }
     try {
-      const ctx = await fetchRepoContext(ref);
+      const token = await storage.getGithubToken();
+      const ctx = await fetchRepoContext(ref, token || undefined);
       await runAnalysis(ctx);
+    } catch (e) {
+      setRepoErr((e as Error).message);
+    }
+  }
+
+  async function onConnectGithub() {
+    setRepoErr("");
+    try {
+      await connectGithub();
+      setRepoErr("GitHub connected ✓ — now Analyze your private repo.");
     } catch (e) {
       setRepoErr((e as Error).message);
     }
@@ -53,6 +65,9 @@ export function InputPanel() {
         />
       </label>
       <button disabled={!repoUrl || analyzing.value} onClick={onRepo}>Analyze repo</button>
+      <button class="secondary" disabled={analyzing.value} onClick={onConnectGithub}>
+        Connect GitHub (for private repos)
+      </button>
       {repoErr && <p class="error">{repoErr}</p>}
       {analyzing.value && <p class="status">Analyzing…</p>}
       {appState.status.value && <p class="status">{appState.status.value}</p>}

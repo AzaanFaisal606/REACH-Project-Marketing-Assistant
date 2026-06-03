@@ -152,3 +152,11 @@ export function openSubmit(): void {
     reddit.error.value = (e as Error).message;
   }
 }
+
+export async function connectGithub(): Promise<string> {
+  const resp = (await chrome.runtime.sendMessage({ type: "github-oauth" })) as
+    { ok: boolean; token?: string; error?: string };
+  if (!resp?.ok || !resp.token) throw new Error(resp?.error ?? "GitHub connection failed.");
+  await storage.setGithubToken(resp.token);
+  return resp.token;
+}
