@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileText } from "./InputPanel";
+import { readFileText } from "./read-file";
 
 describe("readFileText", () => {
   it("reads a text file's contents", async () => {
