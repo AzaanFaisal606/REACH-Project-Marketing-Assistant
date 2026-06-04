@@ -17,7 +17,14 @@ export function SubredditCard(props: {
       >
         r/{sub.name}
       </a>
-      <span class="sub-meta">{sub.subscribers.toLocaleString()} members</span>
+      <span class="sub-right">
+        {typeof sub.fitScore === "number" && (
+          <span class={`fit-badge${sub.fitScore >= 70 ? " high" : sub.fitScore >= 40 ? " mid" : " low"}`}>
+            {sub.fitScore}% fit
+          </span>
+        )}
+        <span class="sub-meta">{sub.subscribers.toLocaleString()} members</span>
+      </span>
     </button>
   );
 }

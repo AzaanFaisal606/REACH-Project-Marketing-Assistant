@@ -58,8 +58,9 @@ describe("reddit flow", () => {
   });
 
   it("appends new communities on 'find more' without duplicating existing ones", async () => {
-    // 6 distinct subs returned; rank caps at 5, so a second pass surfaces the 6th.
-    const children = Array.from({ length: 6 }, (_, i) => ({
+    // 12 distinct subs; display caps at 8, so a second pass surfaces the rest.
+    // No API key set here → no AI rerank, so ordering is deterministic.
+    const children = Array.from({ length: 12 }, (_, i) => ({
       data: { display_name: `sub${i}`, title: "web apps", public_description: "web apps dev", subscribers: 100000 + i, over18: false }
     }));
     // fresh Response per call — a Response body can only be read once
@@ -69,13 +70,32 @@ describe("reddit flow", () => {
     await saveSummary({ valueProp: "v", targetUser: "t", keyFeatures: ["f"], tone: "x", keywords: ["web"] });
 
     await findCommunities();
-    const first = reddit.candidates.value.length;
-    expect(first).toBe(5);
+    expect(reddit.candidates.value.length).toBe(8); // first batch capped at display count
 
     await findCommunities(true); // find more
     const names = reddit.candidates.value.map((c) => c.name);
     expect(new Set(names).size).toBe(names.length); // no duplicates
-    expect(reddit.candidates.value.length).toBe(6); // 6th appended
+    expect(reddit.candidates.value.length).toBe(12); // remaining 4 appended
+  });
+
+  it("AI-reranks the pool and attaches fit scores when a key is set", async () => {
+    const children = Array.from({ length: 4 }, (_, i) => ({
+      data: { display_name: `sub${i}`, title: "web apps", public_description: "web apps dev", subscribers: 100000 + i, over18: false }
+    }));
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify({ data: { children } }), { status: 200 }));
+    const rerankMod = await import("@/lib/reddit/rerank");
+    // stand in for the LLM call: rank sub3 first with a score
+    vi.spyOn(rerankMod, "rerankWithAI").mockImplementation(async (_s, pool) =>
+      pool.map((c) => ({ ...c, fitScore: c.name === "sub3" ? 99 : 50 }))
+         .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0)));
+    const { reddit, appState, findCommunities, saveSummary } = await import("./state");
+    appState.apiKey.value = "key-present";
+    await saveSummary({ valueProp: "v", targetUser: "t", keyFeatures: ["f"], tone: "x", keywords: ["web"] });
+
+    await findCommunities();
+    expect(reddit.candidates.value[0].name).toBe("sub3");
+    expect(reddit.candidates.value[0].fitScore).toBe(99);
   });
 
   it("flags subs that restrict self-promotion on select", async () => {

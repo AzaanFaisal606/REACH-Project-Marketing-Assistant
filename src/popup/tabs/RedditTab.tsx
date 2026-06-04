@@ -14,11 +14,13 @@ export function RedditTab() {
         disabled={reddit.finding.value}
         onClick={() => findCommunities(hasResults)}
       >
-        {reddit.finding.value
-          ? "Finding communities…"
-          : hasResults
-            ? "Find more communities"
-            : "Find communities"}
+        {reddit.reranking.value
+          ? "Ranking by fit…"
+          : reddit.finding.value
+            ? "Finding communities…"
+            : hasResults
+              ? "Find more communities"
+              : "Find communities"}
       </button>
       {reddit.error.value && (
         <p class={`alert-box${reddit.rateLimited.value ? " danger" : ""}`}>

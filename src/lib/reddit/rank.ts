@@ -6,6 +6,9 @@ export interface SubredditCandidate {
   description: string;
   subscribers: number;
   over18: boolean;
+  /** 0-100 fit score from the optional AI re-rank (Phase 2). Absent when the
+   *  heuristic ranking alone was used. */
+  fitScore?: number;
 }
 
 const MIN_SUBSCRIBERS = 1000;
@@ -37,7 +40,8 @@ function matchesGeography(c: SubredditCandidate, geo: string[]): boolean {
 export function rankSubreddits(
   candidates: SubredditCandidate[],
   keywords: string[],
-  facets?: KeywordFacets
+  facets?: KeywordFacets,
+  limit: number = TOP_N
 ): SubredditCandidate[] {
   const scored = candidates
     .filter((c) => !c.over18 && c.subscribers >= MIN_SUBSCRIBERS)
@@ -49,16 +53,16 @@ export function rankSubreddits(
     .filter((x) => x.overlap > 0) // must match at least one keyword
     .sort((a, b) => b.score - a.score);
 
-  const top = scored.slice(0, TOP_N).map((x) => x.c);
+  const top = scored.slice(0, limit).map((x) => x.c);
 
   // Diversity guarantee: if the project targets a place and some candidate
-  // matches that geography but didn't make the top N, swap it in for the
-  // weakest topic sub. This is what surfaces r/<place> for a regional project.
+  // matches that geography but didn't make the cut, swap it in for the weakest
+  // topic sub. This is what surfaces r/<place> for a regional project.
   const geo = facets?.geography ?? [];
   if (geo.length > 0 && !top.some((c) => matchesGeography(c, geo))) {
     const geoPick = scored.find((x) => matchesGeography(x.c, geo));
-    if (geoPick && top.length === TOP_N) {
-      top[TOP_N - 1] = geoPick.c; // replace the weakest with the geo match
+    if (geoPick && top.length >= limit) {
+      top[top.length - 1] = geoPick.c; // replace the weakest with the geo match
     } else if (geoPick) {
       top.push(geoPick.c);
     }

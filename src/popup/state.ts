@@ -9,6 +9,7 @@ import { analyze } from "@/lib/analysis/analyze";
 import { searchSubreddits, RedditRateLimitError } from "@/lib/reddit/search";
 import { rankSubreddits, type SubredditCandidate } from "@/lib/reddit/rank";
 import { buildQueryPlan } from "@/lib/reddit/query-plan";
+import { rerankWithAI } from "@/lib/reddit/rerank";
 import { fetchSubredditRules, type SubredditRule } from "@/lib/reddit/rules";
 import { restrictsSelfPromotion } from "@/lib/reddit/restrictions";
 import { buildRedditPrompt } from "@/lib/prompts/reddit";
@@ -91,6 +92,7 @@ export async function runAnalysis(projectContext: string): Promise<void> {
 
 export const reddit = {
   finding: signal<boolean>(false),
+  reranking: signal<boolean>(false),
   candidates: signal<SubredditCandidate[]>([]),
   selected: signal<string | null>(null),
   rules: signal<SubredditRule[]>([]),
@@ -101,6 +103,10 @@ export const reddit = {
   error: signal<string>(""),
   rateLimited: signal<boolean>(false)
 };
+
+// Heuristic pool fed to the AI re-ranker, and how many we ultimately show.
+const POOL_SIZE = 30;
+const DISPLAY_COUNT = 8;
 
 // Persist the discover→pick state so reopening the popup resumes mid-flow
 // (drafts persist separately under their own storage key).
@@ -123,6 +129,23 @@ function resetRedditFlow(): void {
   void storage.clearRedditSession();
 }
 
+// AI-refine the heuristic pool when a key is available. Never throws — rerank
+// falls back to the heuristic order internally, so a failed/credit-less call
+// just yields the unrefined list.
+async function maybeRerank(
+  summary: ProjectSummary,
+  pool: SubredditCandidate[]
+): Promise<SubredditCandidate[]> {
+  if (!appState.apiKey.value || pool.length === 0) return pool;
+  reddit.reranking.value = true;
+  try {
+    const provider = getProvider(appState.providerId.value);
+    return await rerankWithAI(summary, pool, provider, appState.apiKey.value);
+  } finally {
+    reddit.reranking.value = false;
+  }
+}
+
 export async function findCommunities(append = false): Promise<void> {
   const summary = appState.summary.value;
   if (!summary) { reddit.error.value = "Add a project first."; return; }
@@ -139,14 +162,17 @@ export async function findCommunities(append = false): Promise<void> {
     const raw = await searchSubreddits(buildQueryPlan(summary));
     const scoreKeywords = flattenFacets(summary);
     if (append) {
-      // "Find more": rank surfaces only the top 5, so drop already-shown subs
-      // from the raw pool BEFORE ranking to reveal the next batch.
+      // "Find more": heuristically rank the unseen pool, AI-refine the new
+      // batch, then append.
       const seen = new Set(reddit.candidates.value.map((c) => c.name));
-      const fresh = rankSubreddits(raw.filter((c) => !seen.has(c.name)), scoreKeywords, summary.facets);
+      const pool = rankSubreddits(raw.filter((c) => !seen.has(c.name)), scoreKeywords, summary.facets, POOL_SIZE);
+      const fresh = (await maybeRerank(summary, pool)).slice(0, DISPLAY_COUNT);
       reddit.candidates.value = [...reddit.candidates.value, ...fresh];
       if (fresh.length === 0) reddit.error.value = "No more communities found.";
     } else {
-      const ranked = rankSubreddits(raw, scoreKeywords, summary.facets);
+      // Heuristic gets a wide pool; the AI re-ranks it for fit, then we show the best.
+      const pool = rankSubreddits(raw, scoreKeywords, summary.facets, POOL_SIZE);
+      const ranked = (await maybeRerank(summary, pool)).slice(0, DISPLAY_COUNT);
       reddit.candidates.value = ranked;
       if (ranked.length === 0) {
         reddit.error.value = "No strong matches — try editing the project description.";

@@ -57,7 +57,18 @@
   transition: color 0.12s ease;
 }
 .sub-name:hover { color: var(--accent); text-decoration: underline; }
+.sub-right { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .sub-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.fit-badge {
+  font-size: 10px; font-weight: var(--fw-semibold); padding: 2px 7px;
+  border-radius: var(--radius-pill); border: 1px solid var(--border-strong);
+  font-variant-numeric: tabular-nums;
+}
+.fit-badge.high { color: var(--success); border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent); }
+.fit-badge.mid { color: var(--accent); border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.fit-badge.low { color: var(--text-faint); }
 
 /* selected panel + rules + caution */
 .selected-panel { display: flex; flex-direction: column; gap: 12px; }
