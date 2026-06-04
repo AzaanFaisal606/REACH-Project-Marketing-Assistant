@@ -18,18 +18,21 @@ export const appState = {
   providerId: signal<ProviderId>("claude"),
   apiKey: signal<string>(""),
   summary: signal<ProjectSummary | null>(null),
-  status: signal<string>("")
+  status: signal<string>(""),
+  githubConnected: signal<boolean>(false)
 };
 
 export async function hydrate(): Promise<void> {
-  const [provider, key, summary] = await Promise.all([
+  const [provider, key, summary, githubToken] = await Promise.all([
     storage.getProvider(),
     storage.getApiKey(),
-    storage.getSummary()
+    storage.getSummary(),
+    storage.getGithubToken()
   ]);
   if (provider) appState.providerId.value = provider;
   appState.apiKey.value = key;
   appState.summary.value = summary ?? null;
+  appState.githubConnected.value = !!githubToken; // persists across browser sessions
 }
 
 export async function saveProvider(id: ProviderId): Promise<void> {
@@ -142,6 +145,10 @@ export async function generatePost(): Promise<void> {
   }
 }
 
+export async function regeneratePost(): Promise<void> {
+  await generatePost();
+}
+
 export function openSubmit(): void {
   const sub = reddit.selected.value;
   if (!sub) return;
@@ -158,5 +165,6 @@ export async function connectGithub(): Promise<string> {
     { ok: boolean; token?: string; error?: string };
   if (!resp?.ok || !resp.token) throw new Error(resp?.error ?? "GitHub connection failed.");
   await storage.setGithubToken(resp.token);
+  appState.githubConnected.value = true;
   return resp.token;
 }

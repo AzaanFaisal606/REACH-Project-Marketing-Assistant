@@ -1,0 +1,25 @@
+button.primary {
+  background: var(--accent); color: var(--on-accent); border: none;
+  padding: 10px; border-radius: var(--radius-lg); font-weight: var(--fw-semibold);
+  font-size: var(--fs-13); cursor: pointer; width: 100%;
+}
+button.primary:hover:not(:disabled) { background: var(--accent-press); }
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.secondary {
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong);
+  padding: 10px; border-radius: var(--radius-lg); font-size: var(--fs-13); cursor: pointer;
+}
+button.secondary:hover:not(:disabled) { background: var(--surface-3); }
+button.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+input, textarea, select {
+  width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px; font-size: var(--fs-12); margin-top: 4px;
+}
+input:focus, textarea:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+label { display: block; font-size: var(--fs-12); color: var(--text-dim); }
+.error { color: var(--error); font-size: var(--fs-12); margin: 4px 0 0; }
+.status { font-size: var(--fs-12); color: var(--text-dim); margin: 0; }
+.connected { color: var(--success); font-size: var(--fs-12); margin: 4px 0 0; font-weight: var(--fw-semibold); }

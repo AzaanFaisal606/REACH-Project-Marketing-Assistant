@@ -1,0 +1,78 @@
+/* provider status chip in header */
+.provider-chip {
+  font-size: var(--fs-12); color: var(--accent);
+  background: var(--surface-2); padding: 3px 8px; border-radius: var(--radius-pill);
+}
+
+/* input panel */
+.input-panel { display: flex; flex-direction: column; gap: 10px; }
+.input-panel h2 { font-size: var(--fs-13); font-weight: var(--fw-semibold); margin: 0; }
+/* file picker — native input hidden, label drives a primary button + filename */
+.file-picker { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.file-picker input[type="file"] {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); border: 0;
+}
+.btn-like {
+  display: inline-block; padding: 8px 14px; border-radius: var(--radius-lg);
+  font-weight: var(--fw-semibold); font-size: var(--fs-13); white-space: nowrap;
+}
+.btn-like.primary { background: var(--accent); color: var(--on-accent); }
+.file-picker:hover .btn-like.primary { background: var(--accent-press); }
+.file-name { font-size: var(--fs-12); color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-clear {
+  align-self: flex-start; background: none; border: none; padding: 0;
+  color: var(--text-faint); font-size: 11px; cursor: pointer; text-decoration: underline;
+}
+.link-clear:hover { color: var(--text-dim); }
+.or { text-align: center; font-size: 11px; color: var(--text-faint); }
+.summary-chip {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px; font-size: var(--fs-12);
+}
+
+/* settings */
+.settings { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.test-msg { font-size: var(--fs-13); margin: 0; }
+.hint { font-size: 11px; color: var(--text-faint); margin: 0; }
+
+/* section label (D2) */
+.section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-faint); }
+
+/* subreddit cards (D2 — number badge) */
+.reddit-tab { display: flex; flex-direction: column; gap: 12px; }
+.gate { font-size: var(--fs-12); color: var(--text-dim); }
+.sub-list { display: flex; flex-direction: column; gap: 8px; }
+.sub-card {
+  width: 100%; text-align: left; display: flex; gap: 10px; align-items: flex-start;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 11px; cursor: pointer; color: var(--text);
+}
+.sub-card.selected { background: var(--surface-2); border-color: var(--accent); }
+.sub-name { font-weight: var(--fw-semibold); }
+.sub-meta { font-size: 11px; color: var(--text-dim); margin: 2px 0; }
+.sub-desc { font-size: var(--fs-12); color: var(--text-dim); }
+
+/* selected panel + rules + caution */
+.selected-panel { display: flex; flex-direction: column; gap: 12px; }
+.rules summary { cursor: pointer; font-size: var(--fs-12); color: var(--text-dim); }
+.rules ul { margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-12); color: var(--text-dim); line-height: 1.6; }
+.caution {
+  font-size: 11px; color: var(--text-dim);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px;
+}
+
+/* draft editor */
+.draft-editor { display: flex; flex-direction: column; gap: 11px; }
+.draft-editor .count { color: var(--accent); font-variant-numeric: tabular-nums; }
+.draft-editor .count.over { color: var(--error); }
+.draft-actions { display: flex; gap: 7px; }
+
+/* coming soon */
+.coming-soon { text-align: center; padding: 32px 16px; color: var(--text-dim); }
+.cs-badge {
+  display: inline-block; background: var(--surface-2); color: var(--accent);
+  border: 1px solid var(--border); padding: 4px 10px; border-radius: var(--radius-pill);
+  font-size: 11px; margin-bottom: 12px;
+}
+.cs-sub { font-size: 11px; color: var(--text-faint); }

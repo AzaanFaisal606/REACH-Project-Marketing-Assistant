@@ -1,0 +1,36 @@
+/* Design tokens — the single source of truth. Change a value here, it changes everywhere. */
+:root {
+  /* surfaces (graphite, no blue cast) */
+  --bg: #161617;
+  --surface: #1e1e1f;
+  --surface-2: #262626;
+  --surface-3: #2e2e2f;
+
+  /* text */
+  --text: #e6e4e1;
+  --text-dim: #9a9794;
+  --text-faint: #75726f;
+
+  /* accent (warm amber) */
+  --accent: #d99a4e;
+  --accent-press: #c2853a;
+  --on-accent: #161617;
+
+  /* lines + feedback */
+  --border: #313131;
+  --border-strong: #3f3f40;
+  --error: #d98c7a;
+  --success: #8bbf7a;
+
+  /* shape */
+  --radius: 8px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* type */
+  --font-sans: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fw-regular: 400;
+  --fw-semibold: 600;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { hydrate, appState } from "./state";
 import type { TabId } from "./state";
+import { PROVIDERS } from "@/lib/providers";
 import { Settings } from "./components/Settings";
 import { InputPanel } from "./components/InputPanel";
 import { RedditTab } from "./tabs/RedditTab";
@@ -20,7 +21,12 @@ export function App() {
     <div class="app">
       <header class="app-header">
         <span class="brand">REACH</span>
-        <button class="gear" onClick={() => setShowSettings((s) => !s)} aria-label="Settings">⚙</button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {appState.apiKey.value && (
+            <span class="provider-chip">{PROVIDERS[appState.providerId.value].label} ✓</span>
+          )}
+          <button class="gear" onClick={() => setShowSettings((s) => !s)} aria-label="Settings">⚙</button>
+        </div>
       </header>
 
       {showSettings ? (

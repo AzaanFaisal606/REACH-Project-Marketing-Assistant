@@ -1,0 +1,20 @@
+.app { width: 380px; min-height: 480px; display: flex; flex-direction: column; }
+
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: var(--fw-semibold); letter-spacing: 0.5px; }
+.gear { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; padding: 4px; line-height: 1; }
+.gear:hover { color: var(--text); }
+
+.body { padding: 14px; display: flex; flex-direction: column; gap: 13px; }
+
+/* pill tab bar (D2) */
+.tab-bar { display: flex; gap: 6px; background: var(--surface); padding: 4px; border-radius: var(--radius-pill); }
+.tab {
+  flex: 1; text-align: center; padding: 7px; border: none; background: none;
+  color: var(--text-faint); cursor: pointer; border-radius: var(--radius-pill);
+  font-size: var(--fs-13); font-family: inherit;
+}
+.tab.active { background: var(--accent); color: var(--on-accent); font-weight: var(--fw-semibold); }

@@ -43,7 +43,7 @@ export function Settings() {
           onInput={(e) => saveApiKey((e.target as HTMLInputElement).value)}
         />
       </label>
-      <button disabled={testing || !appState.apiKey.value} onClick={testKey}>
+      <button class="primary" disabled={testing || !appState.apiKey.value} onClick={testKey}>
         {testing ? "Testing…" : "Test key"}
       </button>
       {testMsg && <p class="test-msg">{testMsg}</p>}

@@ -1,4 +1,4 @@
-import { reddit, openSubmit } from "../state";
+import { reddit, openSubmit, regeneratePost } from "../state";
 import { TITLE_MAX } from "@/lib/reddit/submit-url";
 
 export function DraftEditor() {
@@ -21,9 +21,14 @@ export function DraftEditor() {
           onInput={(e) => (reddit.draftBody.value = (e.target as HTMLTextAreaElement).value)}
         />
       </label>
-      <button class="primary" disabled={tooLong || !reddit.draftTitle.value} onClick={openSubmit}>
-        Open Reddit submit page →
-      </button>
+      <div class="draft-actions">
+        <button class="secondary" disabled={reddit.generating.value} onClick={regeneratePost}>
+          {reddit.generating.value ? "…" : "↻ Regenerate"}
+        </button>
+        <button class="primary" disabled={tooLong || !reddit.draftTitle.value} onClick={openSubmit}>
+          Open Reddit submit page →
+        </button>
+      </div>
       {tooLong && <p class="error">Title exceeds Reddit's {TITLE_MAX}-char limit.</p>}
     </div>
   );

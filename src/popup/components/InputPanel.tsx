@@ -9,9 +9,24 @@ export { readFileText };
 export function InputPanel() {
   const [repoUrl, setRepoUrl] = useState("");
   const [repoErr, setRepoErr] = useState("");
+  // Staged README: held until the user clicks Analyze (not analyzed on pick).
+  const [fileName, setFileName] = useState("");
+  const [fileText, setFileText] = useState("");
 
-  async function onRepo() {
+  const hasSource = !!fileText || !!repoUrl.trim();
+
+  function clearFile() {
+    setFileName("");
+    setFileText("");
+  }
+
+  async function onAnalyze() {
     setRepoErr("");
+    // Staged README wins if present.
+    if (fileText) {
+      await runAnalysis(fileText);
+      return;
+    }
     const ref = parseRepoUrl(repoUrl);
     if (!ref) { setRepoErr("Enter a valid GitHub URL or owner/repo."); return; }
     try {
@@ -26,8 +41,7 @@ export function InputPanel() {
   async function onConnectGithub() {
     setRepoErr("");
     try {
-      await connectGithub();
-      setRepoErr("GitHub connected ✓ — now Analyze your private repo.");
+      await connectGithub(); // sets appState.githubConnected → status line shows below
     } catch (e) {
       setRepoErr((e as Error).message);
     }
@@ -39,7 +53,10 @@ export function InputPanel() {
     if (!file) return;
     try {
       const text = await readFileText(file);
-      await runAnalysis(text);
+      setFileName(file.name);
+      setFileText(text);
+      setRepoUrl(""); // README is now the active source
+      setRepoErr("");
     } catch (err) {
       appState.status.value = `Could not read file: ${(err as Error).message}`;
     } finally {
@@ -50,24 +67,35 @@ export function InputPanel() {
   return (
     <div class="input-panel">
       <h2>Add your project</h2>
-      <label class="file-drop">
-        Upload README (.md / .txt)
+      <label class="file-picker">
+        <span class="btn-like primary">Choose file</span>
+        <span class="file-name">{fileName || "No README selected"}</span>
         <input type="file" accept=".md,.txt,text/markdown,text/plain" onChange={onFile} />
       </label>
+      {fileName && (
+        <button class="link-clear" type="button" onClick={clearFile}>Remove README</button>
+      )}
       <div class="or">— or —</div>
       <label class="repo-input">
-        Public GitHub repo
+        Repository URL
         <input
           type="text"
           placeholder="https://github.com/owner/repo"
           value={repoUrl}
-          onInput={(e) => setRepoUrl((e.target as HTMLInputElement).value)}
+          onInput={(e) => {
+            const v = (e.target as HTMLInputElement).value;
+            setRepoUrl(v);
+            if (v && fileText) clearFile(); // typing a repo switches source off the README
+          }}
         />
       </label>
-      <button disabled={!repoUrl || analyzing.value} onClick={onRepo}>Analyze repo</button>
-      <button class="secondary" disabled={analyzing.value} onClick={onConnectGithub}>
-        Connect GitHub (for private repos)
+      <button class="primary" disabled={!hasSource || analyzing.value} onClick={onAnalyze}>
+        Analyze
       </button>
+      <button class="secondary" disabled={analyzing.value} onClick={onConnectGithub}>
+        {appState.githubConnected.value ? "Reconnect GitHub" : "Connect GitHub (for private repos)"}
+      </button>
+      {appState.githubConnected.value && <p class="connected">GitHub connected ✓</p>}
       {repoErr && <p class="error">{repoErr}</p>}
       {analyzing.value && <p class="status">Analyzing…</p>}
       {appState.status.value && <p class="status">{appState.status.value}</p>}
