@@ -47,4 +47,24 @@ describe("storage", () => {
     await chrome.storage.local.set({ summary: { valueProp: 123 } });
     expect(await storage.getSummary()).toBeUndefined();
   });
+
+  it("round-trips the reddit session (candidates, selected, rules)", async () => {
+    const session = {
+      candidates: [{ name: "webdev", title: "Web", description: "d", subscribers: 1000, over18: false }],
+      selected: "webdev",
+      rules: [{ name: "Be nice", description: "" }]
+    };
+    await storage.setRedditSession(session);
+    expect(await storage.getRedditSession()).toEqual(session);
+  });
+
+  it("returns null when no reddit session stored", async () => {
+    expect(await storage.getRedditSession()).toBeNull();
+  });
+
+  it("clears the reddit session", async () => {
+    await storage.setRedditSession({ candidates: [], selected: null, rules: [] });
+    await storage.clearRedditSession();
+    expect(await storage.getRedditSession()).toBeNull();
+  });
 });

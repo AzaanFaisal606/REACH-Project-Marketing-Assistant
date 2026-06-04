@@ -1,6 +1,14 @@
 import { obfuscate, deobfuscate } from "./obfuscate";
 import type { ProviderId } from "@/lib/providers/types";
 import type { ProjectSummary } from "@/lib/analysis/types";
+import type { SubredditCandidate } from "@/lib/reddit/rank";
+import type { SubredditRule } from "@/lib/reddit/rules";
+
+export interface RedditSession {
+  candidates: SubredditCandidate[];
+  selected: string | null;
+  rules: SubredditRule[];
+}
 
 const VALID_PROVIDERS = ["claude", "gpt", "gemini"] as const;
 
@@ -21,7 +29,8 @@ const KEYS = {
   provider: "provider",
   summary: "summary",
   drafts: "drafts",
-  githubToken: "githubToken"
+  githubToken: "githubToken",
+  redditSession: "redditSession"
 } as const;
 
 async function getRaw<T>(key: string): Promise<T | undefined> {
@@ -68,5 +77,14 @@ export const storage = {
   },
   async setGithubToken(token: string): Promise<void> {
     await setRaw(KEYS.githubToken, obfuscate(token));
+  },
+  async getRedditSession(): Promise<RedditSession | null> {
+    return (await getRaw<RedditSession>(KEYS.redditSession)) ?? null;
+  },
+  async setRedditSession(session: RedditSession): Promise<void> {
+    await setRaw(KEYS.redditSession, session);
+  },
+  async clearRedditSession(): Promise<void> {
+    await chrome.storage.local.remove(KEYS.redditSession);
   }
 };

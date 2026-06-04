@@ -6,14 +6,27 @@ export function RedditTab() {
   if (!appState.summary.value) {
     return <p class="gate">Add a project above to find communities.</p>;
   }
+  const hasResults = reddit.candidates.value.length > 0;
   return (
     <div class="reddit-tab">
-      <button class="primary" disabled={reddit.finding.value} onClick={findCommunities}>
-        {reddit.finding.value ? "Finding communities…" : "Find communities"}
+      <button
+        class="primary"
+        disabled={reddit.finding.value}
+        onClick={() => findCommunities(hasResults)}
+      >
+        {reddit.finding.value
+          ? "Finding communities…"
+          : hasResults
+            ? "Find more communities"
+            : "Find communities"}
       </button>
-      {reddit.error.value && <p class="error">{reddit.error.value}</p>}
+      {reddit.error.value && (
+        <p class={`alert-box${reddit.rateLimited.value ? " danger" : ""}`}>
+          {reddit.error.value}
+        </p>
+      )}
 
-      {reddit.candidates.value.length > 0 && (
+      {hasResults && (
         <div class="sub-list">
           {reddit.candidates.value.map((sub) => (
             <SubredditCard
@@ -32,6 +45,11 @@ export function RedditTab() {
               <summary>r/{reddit.selected.value} rules ({reddit.rules.value.length})</summary>
               <ul>{reddit.rules.value.map((r) => <li>{r.name}</li>)}</ul>
             </details>
+          )}
+          {reddit.restrictsPromo.value && (
+            <p class="caution danger">
+              ⚠ This subreddit restricts self-promotion — post at your own risk.
+            </p>
           )}
           <p class="caution">⚠ Many subs enforce karma/account-age minimums via automod. Check before posting.</p>
           <button class="primary" disabled={reddit.generating.value} onClick={generatePost}>

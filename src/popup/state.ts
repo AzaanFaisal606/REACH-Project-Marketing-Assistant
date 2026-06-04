@@ -5,9 +5,10 @@ import type { ProjectSummary } from "@/lib/analysis/types";
 import { getProvider } from "@/lib/providers";
 import { generate } from "@/lib/providers/types";
 import { analyze } from "@/lib/analysis/analyze";
-import { searchSubreddits } from "@/lib/reddit/search";
+import { searchSubreddits, RedditRateLimitError } from "@/lib/reddit/search";
 import { rankSubreddits, type SubredditCandidate } from "@/lib/reddit/rank";
 import { fetchSubredditRules, type SubredditRule } from "@/lib/reddit/rules";
+import { restrictsSelfPromotion } from "@/lib/reddit/restrictions";
 import { buildRedditPrompt } from "@/lib/prompts/reddit";
 import { buildSubmitUrl } from "@/lib/reddit/submit-url";
 
@@ -23,16 +24,31 @@ export const appState = {
 };
 
 export async function hydrate(): Promise<void> {
-  const [provider, key, summary, githubToken] = await Promise.all([
+  const [provider, key, summary, githubToken, session] = await Promise.all([
     storage.getProvider(),
     storage.getApiKey(),
     storage.getSummary(),
-    storage.getGithubToken()
+    storage.getGithubToken(),
+    storage.getRedditSession()
   ]);
   if (provider) appState.providerId.value = provider;
   appState.apiKey.value = key;
   appState.summary.value = summary ?? null;
   appState.githubConnected.value = !!githubToken; // persists across browser sessions
+
+  // Resume an in-progress Reddit flow: communities found, sub picked, draft.
+  if (session) {
+    reddit.candidates.value = session.candidates;
+    reddit.selected.value = session.selected;
+    reddit.rules.value = session.rules;
+    reddit.restrictsPromo.value = restrictsSelfPromotion(session.rules);
+    if (session.selected) {
+      const drafts = await storage.getDrafts();
+      const existing = drafts[session.selected];
+      reddit.draftTitle.value = existing?.title ?? "";
+      reddit.draftBody.value = existing?.body ?? "";
+    }
+  }
 }
 
 export async function saveProvider(id: ProviderId): Promise<void> {
@@ -61,6 +77,8 @@ export async function runAnalysis(projectContext: string): Promise<void> {
     const provider = getProvider(appState.providerId.value);
     const summary = await analyze(projectContext, provider, appState.apiKey.value, generate);
     await saveSummary(summary);
+    // New project → previous communities/selection/draft no longer apply.
+    resetRedditFlow();
     appState.status.value = "Analysis ready.";
   } catch (e) {
     appState.status.value = `Analysis failed: ${(e as Error).message}`;
@@ -74,27 +92,69 @@ export const reddit = {
   candidates: signal<SubredditCandidate[]>([]),
   selected: signal<string | null>(null),
   rules: signal<SubredditRule[]>([]),
+  restrictsPromo: signal<boolean>(false),
   generating: signal<boolean>(false),
   draftTitle: signal<string>(""),
   draftBody: signal<string>(""),
-  error: signal<string>("")
+  error: signal<string>(""),
+  rateLimited: signal<boolean>(false)
 };
 
-export async function findCommunities(): Promise<void> {
+// Persist the discover→pick state so reopening the popup resumes mid-flow
+// (drafts persist separately under their own storage key).
+function persistRedditSession(): void {
+  void storage.setRedditSession({
+    candidates: reddit.candidates.value,
+    selected: reddit.selected.value,
+    rules: reddit.rules.value
+  });
+}
+
+function resetRedditFlow(): void {
+  reddit.candidates.value = [];
+  reddit.selected.value = null;
+  reddit.rules.value = [];
+  reddit.restrictsPromo.value = false;
+  reddit.draftTitle.value = "";
+  reddit.draftBody.value = "";
+  reddit.error.value = "";
+  void storage.clearRedditSession();
+}
+
+export async function findCommunities(append = false): Promise<void> {
   const summary = appState.summary.value;
   if (!summary) { reddit.error.value = "Add a project first."; return; }
   reddit.finding.value = true;
   reddit.error.value = "";
-  reddit.candidates.value = [];
-  reddit.selected.value = null;
+  reddit.rateLimited.value = false;
+  if (!append) {
+    reddit.candidates.value = [];
+    reddit.selected.value = null;
+  }
   try {
     const raw = await searchSubreddits(summary.keywords);
-    reddit.candidates.value = rankSubreddits(raw, summary.keywords);
-    if (reddit.candidates.value.length === 0) {
-      reddit.error.value = "No strong matches — try editing the project description.";
+    if (append) {
+      // "Find more": rank surfaces only the top 5, so drop already-shown subs
+      // from the raw pool BEFORE ranking to reveal the next batch.
+      const seen = new Set(reddit.candidates.value.map((c) => c.name));
+      const fresh = rankSubreddits(raw.filter((c) => !seen.has(c.name)), summary.keywords);
+      reddit.candidates.value = [...reddit.candidates.value, ...fresh];
+      if (fresh.length === 0) reddit.error.value = "No more communities found.";
+    } else {
+      const ranked = rankSubreddits(raw, summary.keywords);
+      reddit.candidates.value = ranked;
+      if (ranked.length === 0) {
+        reddit.error.value = "No strong matches — try editing the project description.";
+      }
     }
+    persistRedditSession();
   } catch (e) {
-    reddit.error.value = (e as Error).message;
+    if (e instanceof RedditRateLimitError) {
+      reddit.rateLimited.value = true;
+      reddit.error.value = "⏳ Reddit is rate-limiting requests — wait about a minute, then try again.";
+    } else {
+      reddit.error.value = (e as Error).message;
+    }
   } finally {
     reddit.finding.value = false;
   }
@@ -105,15 +165,18 @@ export async function selectSubreddit(sub: string): Promise<void> {
   reddit.draftTitle.value = "";
   reddit.draftBody.value = "";
   reddit.rules.value = [];
+  reddit.restrictsPromo.value = false;
   try {
     const rules = await fetchSubredditRules(sub);
     if (reddit.selected.value !== sub) return; // a newer selection superseded this one
     reddit.rules.value = rules;
+    reddit.restrictsPromo.value = restrictsSelfPromotion(rules);
     const drafts = await storage.getDrafts();
     if (reddit.selected.value !== sub) return;
     const existing = drafts[sub];
     reddit.draftTitle.value = existing?.title ?? "";
     reddit.draftBody.value = existing?.body ?? "";
+    persistRedditSession();
   } catch (e) {
     if (reddit.selected.value === sub) {
       reddit.error.value = `Could not load r/${sub}: ${(e as Error).message}`;

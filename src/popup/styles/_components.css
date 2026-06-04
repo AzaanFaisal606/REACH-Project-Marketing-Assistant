@@ -44,14 +44,20 @@
 .gate { font-size: var(--fs-12); color: var(--text-dim); }
 .sub-list { display: flex; flex-direction: column; gap: 8px; }
 .sub-card {
-  width: 100%; text-align: left; display: flex; gap: 10px; align-items: flex-start;
+  width: 100%; text-align: left;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 11px; cursor: pointer; color: var(--text);
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
+.sub-card:hover { transform: translateY(-2px); border-color: var(--accent); }
 .sub-card.selected { background: var(--surface-2); border-color: var(--accent); }
-.sub-name { font-weight: var(--fw-semibold); }
-.sub-meta { font-size: 11px; color: var(--text-dim); margin: 2px 0; }
-.sub-desc { font-size: var(--fs-12); color: var(--text-dim); }
+.sub-name {
+  font-weight: var(--fw-semibold); color: var(--text); text-decoration: none;
+  transition: color 0.12s ease;
+}
+.sub-name:hover { color: var(--accent); text-decoration: underline; }
+.sub-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
 
 /* selected panel + rules + caution */
 .selected-panel { display: flex; flex-direction: column; gap: 12px; }
@@ -60,6 +66,21 @@
 .caution {
   font-size: 11px; color: var(--text-dim);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px;
+}
+.caution.danger {
+  color: var(--error); border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 12%, var(--surface));
+}
+
+/* inline alert/error box for the Reddit flow (search failures, rate limit) */
+.alert-box {
+  font-size: var(--fs-12); color: var(--error);
+  background: var(--surface); border: 1px solid var(--error); border-radius: var(--radius);
+  padding: 9px; margin: 0;
+}
+.alert-box.danger {
+  background: color-mix(in srgb, var(--error) 12%, var(--surface));
+  font-weight: var(--fw-semibold);
 }
 
 /* draft editor */

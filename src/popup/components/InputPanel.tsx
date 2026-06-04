@@ -97,7 +97,6 @@ export function InputPanel() {
       </button>
       {appState.githubConnected.value && <p class="connected">GitHub connected ✓</p>}
       {repoErr && <p class="error">{repoErr}</p>}
-      {analyzing.value && <p class="status">Analyzing…</p>}
       {appState.status.value && <p class="status">{appState.status.value}</p>}
       {appState.summary.value && (
         <div class="summary-chip">✓ {appState.summary.value.valueProp}</div>

@@ -8,9 +8,16 @@ export function SubredditCard(props: {
   const { sub, selected, onSelect } = props;
   return (
     <button class={`sub-card${selected ? " selected" : ""}`} onClick={onSelect}>
-      <div class="sub-name">r/{sub.name}</div>
-      <div class="sub-meta">{sub.subscribers.toLocaleString()} members</div>
-      <div class="sub-desc">{sub.description}</div>
+      <a
+        class="sub-name"
+        href={`https://www.reddit.com/r/${sub.name}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        r/{sub.name}
+      </a>
+      <span class="sub-meta">{sub.subscribers.toLocaleString()} members</span>
     </button>
   );
 }
