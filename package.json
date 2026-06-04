@@ -1,20 +1,23 @@
 {
   "name": "reach",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "Chrome extension that turns a GitHub repo or README into a targeted Reddit launch post using your own AI key.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "chrome-extension",
+    "mv3",
+    "reddit",
+    "byok",
+    "preact",
+    "developer-tools"
+  ],
+  "author": "Azaan Faisal",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "@preact/signals": "^2.9.1",

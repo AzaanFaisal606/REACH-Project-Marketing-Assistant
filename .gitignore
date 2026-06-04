@@ -11,6 +11,10 @@ CLAUDE.md
 .superpowers/
 .worktrees/
 
+# Internal planning/spec docs — not for the public repo
+docs/
+REACH_Extension_Spec.md
+
 # Cloudflare wrangler local state
 worker/.wrangler/
 .dev.vars
