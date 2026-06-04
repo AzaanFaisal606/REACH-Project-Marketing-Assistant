@@ -2,11 +2,13 @@ import { signal } from "@preact/signals";
 import { storage } from "@/lib/storage/storage";
 import type { ProviderId } from "@/lib/providers/types";
 import type { ProjectSummary } from "@/lib/analysis/types";
+import { flattenFacets } from "@/lib/analysis/types";
 import { getProvider } from "@/lib/providers";
 import { generate } from "@/lib/providers/types";
 import { analyze } from "@/lib/analysis/analyze";
 import { searchSubreddits, RedditRateLimitError } from "@/lib/reddit/search";
 import { rankSubreddits, type SubredditCandidate } from "@/lib/reddit/rank";
+import { buildQueryPlan } from "@/lib/reddit/query-plan";
 import { fetchSubredditRules, type SubredditRule } from "@/lib/reddit/rules";
 import { restrictsSelfPromotion } from "@/lib/reddit/restrictions";
 import { buildRedditPrompt } from "@/lib/prompts/reddit";
@@ -132,16 +134,19 @@ export async function findCommunities(append = false): Promise<void> {
     reddit.selected.value = null;
   }
   try {
-    const raw = await searchSubreddits(summary.keywords);
+    // Faceted query plan guarantees the geography axis gets searched (so a
+    // regional project surfaces r/<place>, not just big topic subs).
+    const raw = await searchSubreddits(buildQueryPlan(summary));
+    const scoreKeywords = flattenFacets(summary);
     if (append) {
       // "Find more": rank surfaces only the top 5, so drop already-shown subs
       // from the raw pool BEFORE ranking to reveal the next batch.
       const seen = new Set(reddit.candidates.value.map((c) => c.name));
-      const fresh = rankSubreddits(raw.filter((c) => !seen.has(c.name)), summary.keywords);
+      const fresh = rankSubreddits(raw.filter((c) => !seen.has(c.name)), scoreKeywords, summary.facets);
       reddit.candidates.value = [...reddit.candidates.value, ...fresh];
       if (fresh.length === 0) reddit.error.value = "No more communities found.";
     } else {
-      const ranked = rankSubreddits(raw, summary.keywords);
+      const ranked = rankSubreddits(raw, scoreKeywords, summary.facets);
       reddit.candidates.value = ranked;
       if (ranked.length === 0) {
         reddit.error.value = "No strong matches — try editing the project description.";

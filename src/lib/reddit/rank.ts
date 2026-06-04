@@ -1,3 +1,5 @@
+import type { KeywordFacets } from "@/lib/analysis/types";
+
 export interface SubredditCandidate {
   name: string;
   title: string;
@@ -8,7 +10,11 @@ export interface SubredditCandidate {
 
 const MIN_SUBSCRIBERS = 1000;
 const W_OVERLAP = 10;
-const W_SIZE = 1;
+// Size matters far less than relevance — a huge generic sub buries your post,
+// a smaller on-topic one actually sees it. Keep size as a gentle tiebreaker
+// only (was 1.0; that let 10M-member subs dominate single-axis niche ones).
+const W_SIZE = 0.4;
+const TOP_N = 5;
 
 function keywordOverlap(c: SubredditCandidate, keywords: string[]): number {
   const hay = `${c.name} ${c.title} ${c.description}`.toLowerCase();
@@ -20,11 +26,20 @@ function keywordOverlap(c: SubredditCandidate, keywords: string[]): number {
   return hits;
 }
 
+function matchesGeography(c: SubredditCandidate, geo: string[]): boolean {
+  const hay = `${c.name} ${c.title} ${c.description}`.toLowerCase();
+  return geo.some((g) => {
+    const k = g.toLowerCase().trim();
+    return k.length > 0 && hay.includes(k);
+  });
+}
+
 export function rankSubreddits(
   candidates: SubredditCandidate[],
-  keywords: string[]
+  keywords: string[],
+  facets?: KeywordFacets
 ): SubredditCandidate[] {
-  return candidates
+  const scored = candidates
     .filter((c) => !c.over18 && c.subscribers >= MIN_SUBSCRIBERS)
     .map((c) => {
       const overlap = keywordOverlap(c, keywords);
@@ -32,7 +47,22 @@ export function rankSubreddits(
       return { c, overlap, score };
     })
     .filter((x) => x.overlap > 0) // must match at least one keyword
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
-    .map((x) => x.c);
+    .sort((a, b) => b.score - a.score);
+
+  const top = scored.slice(0, TOP_N).map((x) => x.c);
+
+  // Diversity guarantee: if the project targets a place and some candidate
+  // matches that geography but didn't make the top N, swap it in for the
+  // weakest topic sub. This is what surfaces r/<place> for a regional project.
+  const geo = facets?.geography ?? [];
+  if (geo.length > 0 && !top.some((c) => matchesGeography(c, geo))) {
+    const geoPick = scored.find((x) => matchesGeography(x.c, geo));
+    if (geoPick && top.length === TOP_N) {
+      top[TOP_N - 1] = geoPick.c; // replace the weakest with the geo match
+    } else if (geoPick) {
+      top.push(geoPick.c);
+    }
+  }
+
+  return top;
 }

@@ -25,4 +25,31 @@ describe("rankSubreddits", () => {
     }));
     expect(rankSubreddits(many, ["web", "apps"]).length).toBe(5);
   });
+
+  it("reserves a slot for a geography match that topic subs would otherwise crowd out", () => {
+    // 5 big topic subs (multi-keyword overlap, huge) + 1 small geo sub (single overlap).
+    const big: SubredditCandidate[] = Array.from({ length: 5 }, (_, i) => ({
+      name: `pcgaming${i}`, title: "PC gaming building", description: "pc building gaming rigs", subscribers: 2_000_000 + i, over18: false
+    }));
+    const geo: SubredditCandidate = {
+      name: "pakistan", title: "Pakistan", description: "everything Pakistan", subscribers: 400_000, over18: false
+    };
+    const ranked = rankSubreddits([...big, geo], ["pc building", "gaming", "Pakistan"], { geography: ["Pakistan"] });
+    expect(ranked.find((r) => r.name === "pakistan")).toBeDefined(); // not crowded out
+    expect(ranked.length).toBe(5);
+  });
+
+  it("does not force a geo slot when no candidate matches the geography", () => {
+    const subs: SubredditCandidate[] = Array.from({ length: 6 }, (_, i) => ({
+      name: `topic${i}`, title: "web apps", description: "web apps dev", subscribers: 100_000 + i, over18: false
+    }));
+    const ranked = rankSubreddits(subs, ["web", "apps"], { geography: ["Pakistan"] });
+    expect(ranked.length).toBe(5);
+    expect(ranked.every((r) => r.name.startsWith("topic"))).toBe(true);
+  });
+
+  it("still works with no facets argument (back-compat)", () => {
+    const ranked = rankSubreddits(candidates, ["web", "apps"]);
+    expect(ranked[0].name).toBe("webdev");
+  });
 });

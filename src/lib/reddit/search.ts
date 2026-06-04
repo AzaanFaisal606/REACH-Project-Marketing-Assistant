@@ -14,7 +14,7 @@ interface RedditChild {
 // narrow (Reddit treats it as a single relevance match). But fire them
 // SEQUENTIALLY with a small gap, not in parallel: a burst of requests to
 // reddit.com gets rate-limited (429), which silently shrinks the result set.
-const MAX_KEYWORD_QUERIES = 4;
+const MAX_KEYWORD_QUERIES = 6;
 const PER_QUERY_LIMIT = 25;
 // Once we have this many unique candidates, stop querying further keywords —
 // rank only surfaces the top 5, so a deeper pool just risks the rate limit.
