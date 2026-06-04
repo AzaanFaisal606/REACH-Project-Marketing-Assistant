@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { appState, saveProvider, saveApiKey } from "../state";
 import { PROVIDER_LIST, getProvider } from "@/lib/providers";
 import type { ProviderId } from "@/lib/providers/types";
+import { describeProviderError } from "@/lib/providers/errors";
 
 export function Settings() {
   const [testMsg, setTestMsg] = useState("");
@@ -13,7 +14,7 @@ export function Settings() {
     try {
       const provider = getProvider(appState.providerId.value);
       const res = await fetch(provider.testRequest(appState.apiKey.value));
-      setTestMsg(res.ok ? "Key works ✓" : `Failed: ${res.status}`);
+      setTestMsg(res.ok ? "Key works ✓" : describeProviderError(provider.label, res.status, await res.text()));
     } catch (e) {
       setTestMsg(`Failed: ${(e as Error).message}`);
     } finally {

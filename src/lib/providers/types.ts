@@ -1,3 +1,5 @@
+import { describeProviderError } from "./errors";
+
 export type ProviderId = "claude" | "gpt" | "gemini";
 
 export interface GenerateInput {
@@ -23,7 +25,7 @@ export async function generate(
 ): Promise<string> {
   const res = await fetch(provider.buildRequest(input, apiKey));
   if (!res.ok) {
-    throw new Error(`${provider.label} error ${res.status}: ${await res.text()}`);
+    throw new Error(describeProviderError(provider.label, res.status, await res.text()));
   }
   return provider.parseResponse(await res.json());
 }
