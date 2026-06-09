@@ -52,4 +52,34 @@ describe("rankSubreddits", () => {
     const ranked = rankSubreddits(candidates, ["web", "apps"]);
     expect(ranked[0].name).toBe("webdev");
   });
+
+  // Regression: multi-word keywords must match on word tokens, not the whole
+  // phrase verbatim. A model emitting "neural style transfer" should still match
+  // r/neuralstyle (name has no spaces) and r/deepstyle (shares "style"). The old
+  // whole-phrase substring filter zeroed these out — see the fashion-tech repro.
+  it("matches multi-word keywords by word token, not verbatim phrase", () => {
+    const subs: SubredditCandidate[] = [
+      { name: "neuralstyle", title: "Neural Style", description: "style transfer art", subscribers: 50_000, over18: false },
+      { name: "deepstyle", title: "Deep Style", description: "deep learning style", subscribers: 30_000, over18: false },
+      { name: "cooking", title: "Cooking", description: "recipes and food", subscribers: 3_000_000, over18: false }
+    ];
+    const ranked = rankSubreddits(subs, ["neural style transfer", "image segmentation"]);
+    expect(ranked.find((r) => r.name === "neuralstyle")).toBeDefined();
+    expect(ranked.find((r) => r.name === "deepstyle")).toBeDefined();
+    expect(ranked.find((r) => r.name === "cooking")).toBeUndefined(); // shares no token
+  });
+
+  it("drops subs that share only pure glue words (the/and/with) with keywords", () => {
+    // A keyword phrase's glue words must not rescue an off-topic sub. Only the
+    // content tokens (clothing/design/textile) should drive a match.
+    const subs: SubredditCandidate[] = [
+      { name: "randomchatter", title: "The Daily and Random", description: "for you and your friends with stories", subscribers: 100_000, over18: false },
+      { name: "fashiontech", title: "Fashion Tech", description: "clothing design and textile work", subscribers: 80_000, over18: false }
+    ];
+    const ranked = rankSubreddits(subs, ["the design and", "clothing textile"]);
+    // fashiontech matches clothing/design/textile; randomchatter only overlaps on
+    // stopwords (the/and/for/you/your/with) → zero real overlap → dropped.
+    expect(ranked.find((r) => r.name === "fashiontech")).toBeDefined();
+    expect(ranked.find((r) => r.name === "randomchatter")).toBeUndefined();
+  });
 });

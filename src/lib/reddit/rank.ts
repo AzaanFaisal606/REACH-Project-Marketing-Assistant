@@ -19,12 +19,34 @@ const W_OVERLAP = 10;
 const W_SIZE = 0.4;
 const TOP_N = 5;
 
+// Word tokens shorter than this, plus these pure glue words, don't count toward
+// overlap. We intentionally keep content-bearing tech words like "web"/"app" —
+// those are often the user's actual keyword. Only ban words that carry no topic
+// signal at all and would otherwise match nearly any sub's blurb.
+const MIN_TOKEN_LEN = 3;
+const STOPWORDS = new Set([
+  "the", "and", "for", "with", "your", "you", "are", "our",
+  "this", "that", "from", "into", "via", "using", "based"
+]);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= MIN_TOKEN_LEN && !STOPWORDS.has(t));
+}
+
+// Count how many keyword WORD TOKENS appear in the sub's text. Multi-word
+// keywords ("neural style transfer") are split into words so they still match a
+// compressed sub name like r/neuralstyle ("neural" + "style") — a whole-phrase
+// substring match never would. Each matching token counts once per keyword.
 function keywordOverlap(c: SubredditCandidate, keywords: string[]): number {
   const hay = `${c.name} ${c.title} ${c.description}`.toLowerCase();
   let hits = 0;
   for (const kw of keywords) {
-    const k = kw.toLowerCase().trim();
-    if (k && hay.includes(k)) hits++;
+    for (const token of tokenize(kw)) {
+      if (hay.includes(token)) hits++;
+    }
   }
   return hits;
 }
