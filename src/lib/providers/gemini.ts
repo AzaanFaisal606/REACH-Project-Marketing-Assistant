@@ -1,4 +1,4 @@
-import type { Provider, GenerateInput } from "./types";
+import type { Provider, GenerateInput, ProviderConfig } from "./types";
 
 const MODEL = "gemini-2.0-flash";
 const BASE = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
@@ -6,7 +6,8 @@ const BASE = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:g
 export const gemini: Provider = {
   id: "gemini",
   label: "Gemini",
-  buildRequest(input: GenerateInput, apiKey: string): Request {
+  buildRequest(input: GenerateInput, config: ProviderConfig): Request {
+    const apiKey = config.apiKey ?? "";
     return new Request(`${BASE}?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -25,7 +26,8 @@ export const gemini: Provider = {
       .join("")
       .trim();
   },
-  testRequest(apiKey: string): Request {
+  testRequest(config: ProviderConfig): Request {
+    const apiKey = config.apiKey ?? "";
     return new Request(`${BASE}?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },

@@ -3,7 +3,7 @@ import { gemini } from "./gemini";
 
 describe("gemini adapter", () => {
   it("builds a request with key in the query string", () => {
-    const req = gemini.buildRequest({ system: "sys", user: "hi" }, "g-key");
+    const req = gemini.buildRequest({ system: "sys", user: "hi" }, { apiKey: "g-key" });
     expect(req.url).toContain("generativelanguage.googleapis.com");
     expect(req.url).toContain("key=g-key");
   });

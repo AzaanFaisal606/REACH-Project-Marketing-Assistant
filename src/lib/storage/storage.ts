@@ -10,7 +10,7 @@ export interface RedditSession {
   rules: SubredditRule[];
 }
 
-const VALID_PROVIDERS = ["claude", "gpt", "gemini"] as const;
+const VALID_PROVIDERS = ["claude", "gpt", "gemini", "ollama"] as const;
 
 // NOTE: a fuller isProjectSummary predicate will be added to src/lib/analysis/types.ts in a later task;
 // this local check is intentional for now to avoid a forward dependency.
@@ -30,7 +30,9 @@ const KEYS = {
   summary: "summary",
   drafts: "drafts",
   githubToken: "githubToken",
-  redditSession: "redditSession"
+  redditSession: "redditSession",
+  ollamaBaseUrl: "ollamaBaseUrl",
+  ollamaModel: "ollamaModel"
 } as const;
 
 async function getRaw<T>(key: string): Promise<T | undefined> {
@@ -86,5 +88,17 @@ export const storage = {
   },
   async clearRedditSession(): Promise<void> {
     await chrome.storage.local.remove(KEYS.redditSession);
+  },
+  async getOllamaBaseUrl(): Promise<string> {
+    return (await getRaw<string>(KEYS.ollamaBaseUrl)) ?? "http://localhost:11434";
+  },
+  async setOllamaBaseUrl(url: string): Promise<void> {
+    await setRaw(KEYS.ollamaBaseUrl, url);
+  },
+  async getOllamaModel(): Promise<string> {
+    return (await getRaw<string>(KEYS.ollamaModel)) ?? "";
+  },
+  async setOllamaModel(model: string): Promise<void> {
+    await setRaw(KEYS.ollamaModel, model);
   }
 };

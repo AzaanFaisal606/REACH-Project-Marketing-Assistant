@@ -1,5 +1,5 @@
 import { useState, useEffect } from "preact/hooks";
-import { hydrate, appState } from "./state";
+import { hydrate, appState, providerReady } from "./state";
 import type { TabId } from "./state";
 import { PROVIDERS } from "@/lib/providers";
 import { Settings } from "./components/Settings";
@@ -22,7 +22,7 @@ export function App() {
       <header class="app-header">
         <span class="brand">REACH</span>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {appState.apiKey.value && (
+          {providerReady() && (
             <span class="provider-chip">{PROVIDERS[appState.providerId.value].label} ✓</span>
           )}
           <button class="gear" onClick={() => setShowSettings((s) => !s)} aria-label="Settings">⚙</button>

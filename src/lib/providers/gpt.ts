@@ -1,4 +1,4 @@
-import type { Provider, GenerateInput } from "./types";
+import type { Provider, GenerateInput, ProviderConfig } from "./types";
 
 const URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o";
@@ -6,7 +6,8 @@ const MODEL = "gpt-4o";
 export const gpt: Provider = {
   id: "gpt",
   label: "GPT (OpenAI)",
-  buildRequest(input: GenerateInput, apiKey: string): Request {
+  buildRequest(input: GenerateInput, config: ProviderConfig): Request {
+    const apiKey = config.apiKey ?? "";
     return new Request(URL, {
       method: "POST",
       headers: {
@@ -26,7 +27,8 @@ export const gpt: Provider = {
     const j = json as { choices?: Array<{ message?: { content?: string } }> };
     return (j.choices?.[0]?.message?.content ?? "").trim();
   },
-  testRequest(apiKey: string): Request {
+  testRequest(config: ProviderConfig): Request {
+    const apiKey = config.apiKey ?? "";
     return new Request(URL, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },

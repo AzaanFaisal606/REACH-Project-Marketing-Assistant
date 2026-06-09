@@ -1,9 +1,9 @@
-import type { Provider, GenerateInput } from "@/lib/providers/types";
+import type { Provider, GenerateInput, ProviderConfig } from "@/lib/providers/types";
 import { generate as defaultGenerate } from "@/lib/providers/types";
 import { isProjectSummary, type ProjectSummary } from "./types";
 import { ANALYSIS_SYSTEM, analysisUserPrompt } from "@/lib/prompts/analysis";
 
-type GenFn = (provider: Provider, input: GenerateInput, apiKey: string) => Promise<string>;
+type GenFn = (provider: Provider, input: GenerateInput, config: ProviderConfig) => Promise<string>;
 
 class AnalysisParseError extends Error {}
 
@@ -22,14 +22,14 @@ function extractJson(text: string): unknown {
 export async function analyze(
   projectContext: string,
   provider: Provider,
-  apiKey: string,
+  config: ProviderConfig,
   gen: GenFn = defaultGenerate
 ): Promise<ProjectSummary> {
   const attempt = async (extraInstruction = ""): Promise<ProjectSummary> => {
     const out = await gen(
       provider,
       { system: ANALYSIS_SYSTEM + extraInstruction, user: analysisUserPrompt(projectContext) },
-      apiKey
+      config
     );
     const parsed = extractJson(out);
     if (!isProjectSummary(parsed)) throw new AnalysisParseError("JSON missing required fields");

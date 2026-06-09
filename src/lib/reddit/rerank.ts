@@ -1,10 +1,10 @@
 import type { SubredditCandidate } from "./rank";
 import type { ProjectSummary } from "@/lib/analysis/types";
-import type { Provider, GenerateInput } from "@/lib/providers/types";
+import type { Provider, GenerateInput, ProviderConfig } from "@/lib/providers/types";
 import { generate as defaultGenerate } from "@/lib/providers/types";
 import { buildRerankPrompt } from "@/lib/prompts/rerank";
 
-type GenFn = (provider: Provider, input: GenerateInput, apiKey: string) => Promise<string>;
+type GenFn = (provider: Provider, input: GenerateInput, config: ProviderConfig) => Promise<string>;
 
 interface ScoredName {
   name: string;
@@ -38,14 +38,14 @@ export async function rerankWithAI(
   summary: ProjectSummary,
   candidates: SubredditCandidate[],
   provider: Provider,
-  apiKey: string,
+  config: ProviderConfig,
   gen: GenFn = defaultGenerate
 ): Promise<SubredditCandidate[]> {
   if (candidates.length === 0) return candidates;
 
   try {
     const { system, user } = buildRerankPrompt(summary, candidates);
-    const raw = await gen(provider, { system, user }, apiKey);
+    const raw = await gen(provider, { system, user }, config);
     const scores = parseScores(raw);
 
     const scoreByName = new Map<string, number>();

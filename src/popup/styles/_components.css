@@ -36,6 +36,39 @@
 .test-msg { font-size: var(--fs-13); margin: 0; }
 .hint { font-size: 11px; color: var(--text-faint); margin: 0; }
 
+/* ollama-specific controls */
+.ollama-model-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.ollama-model-row select { margin-top: 0; flex: 1; }
+.ollama-refresh {
+  flex-shrink: 0; background: var(--surface-2); color: var(--text-dim);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 6px 9px; font-size: 14px; cursor: pointer; line-height: 1;
+}
+.ollama-refresh:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.ollama-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+.ollama-cors-hint {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 9px; display: flex; flex-direction: column; gap: 6px;
+}
+.ollama-cmd-row { display: flex; align-items: center; gap: 6px; }
+.ollama-cmd {
+  flex: 1; font-family: "IBM Plex Mono", "Cascadia Code", ui-monospace, monospace;
+  font-size: 11px; color: var(--accent); background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 7px; word-break: break-all;
+}
+.ollama-cmd-os {
+  display: block; font-family: var(--font-sans); font-size: 9px;
+  text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-faint);
+  margin-bottom: 2px;
+}
+.ollama-copy {
+  flex-shrink: 0; background: var(--surface-3); color: var(--text-dim);
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 4px 8px; font-size: 11px; cursor: pointer;
+}
+.ollama-copy:hover { background: var(--surface-2); color: var(--text); }
+
 /* section label (D2) */
 .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-faint); }
 

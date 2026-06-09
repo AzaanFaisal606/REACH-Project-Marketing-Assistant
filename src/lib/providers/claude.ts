@@ -1,4 +1,4 @@
-import type { Provider, GenerateInput } from "./types";
+import type { Provider, GenerateInput, ProviderConfig } from "./types";
 
 const URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-opus-4-8";
@@ -6,7 +6,8 @@ const MODEL = "claude-opus-4-8";
 export const claude: Provider = {
   id: "claude",
   label: "Claude",
-  buildRequest(input: GenerateInput, apiKey: string): Request {
+  buildRequest(input: GenerateInput, config: ProviderConfig): Request {
+    const apiKey = config.apiKey ?? "";
     return new Request(URL, {
       method: "POST",
       headers: {
@@ -31,7 +32,8 @@ export const claude: Provider = {
       .join("")
       .trim();
   },
-  testRequest(apiKey: string): Request {
+  testRequest(config: ProviderConfig): Request {
+    const apiKey = config.apiKey ?? "";
     return new Request(URL, {
       method: "POST",
       headers: {

@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 import { storage } from "@/lib/storage/storage";
-import type { ProviderId } from "@/lib/providers/types";
+import type { ProviderId, ProviderConfig } from "@/lib/providers/types";
 import type { ProjectSummary } from "@/lib/analysis/types";
 import { flattenFacets } from "@/lib/analysis/types";
 import { getProvider } from "@/lib/providers";
@@ -21,21 +21,44 @@ export const appState = {
   tab: signal<TabId>("reddit"),
   providerId: signal<ProviderId>("claude"),
   apiKey: signal<string>(""),
+  ollamaBaseUrl: signal<string>("http://localhost:11434"),
+  ollamaModel: signal<string>(""),
   summary: signal<ProjectSummary | null>(null),
   status: signal<string>(""),
   githubConnected: signal<boolean>(false)
 };
 
+/** Build the ProviderConfig for the currently selected provider.
+ *  Cloud providers use apiKey; Ollama uses baseUrl + model. */
+export function providerConfig(): ProviderConfig {
+  if (appState.providerId.value === "ollama") {
+    return { baseUrl: appState.ollamaBaseUrl.value, model: appState.ollamaModel.value };
+  }
+  return { apiKey: appState.apiKey.value };
+}
+
+/** True when the current provider has the minimum config to make a request. */
+export function providerReady(): boolean {
+  if (appState.providerId.value === "ollama") {
+    return !!appState.ollamaModel.value && !!appState.ollamaBaseUrl.value;
+  }
+  return !!appState.apiKey.value;
+}
+
 export async function hydrate(): Promise<void> {
-  const [provider, key, summary, githubToken, session] = await Promise.all([
+  const [provider, key, summary, githubToken, session, ollamaBaseUrl, ollamaModel] = await Promise.all([
     storage.getProvider(),
     storage.getApiKey(),
     storage.getSummary(),
     storage.getGithubToken(),
-    storage.getRedditSession()
+    storage.getRedditSession(),
+    storage.getOllamaBaseUrl(),
+    storage.getOllamaModel()
   ]);
   if (provider) appState.providerId.value = provider;
   appState.apiKey.value = key;
+  appState.ollamaBaseUrl.value = ollamaBaseUrl;
+  appState.ollamaModel.value = ollamaModel;
   appState.summary.value = summary ?? null;
   appState.githubConnected.value = !!githubToken; // persists across browser sessions
 
@@ -62,6 +85,14 @@ export async function saveApiKey(key: string): Promise<void> {
   appState.apiKey.value = key;
   await storage.setApiKey(key);
 }
+export async function saveOllamaBaseUrl(url: string): Promise<void> {
+  appState.ollamaBaseUrl.value = url;
+  await storage.setOllamaBaseUrl(url);
+}
+export async function saveOllamaModel(model: string): Promise<void> {
+  appState.ollamaModel.value = model;
+  await storage.setOllamaModel(model);
+}
 export async function saveSummary(s: ProjectSummary): Promise<void> {
   appState.summary.value = s;
   await storage.setSummary(s);
@@ -70,15 +101,17 @@ export async function saveSummary(s: ProjectSummary): Promise<void> {
 export const analyzing = signal<boolean>(false);
 
 export async function runAnalysis(projectContext: string): Promise<void> {
-  if (!appState.apiKey.value) {
-    appState.status.value = "Add your API key in Settings first.";
+  if (!providerReady()) {
+    appState.status.value = appState.providerId.value === "ollama"
+      ? "Set the Ollama server URL and pick a model in Settings first."
+      : "Add your API key in Settings first.";
     return;
   }
   analyzing.value = true;
   appState.status.value = "Analyzing project…";
   try {
     const provider = getProvider(appState.providerId.value);
-    const summary = await analyze(projectContext, provider, appState.apiKey.value, generate);
+    const summary = await analyze(projectContext, provider, providerConfig(), generate);
     await saveSummary(summary);
     // New project → previous communities/selection/draft no longer apply.
     resetRedditFlow();
@@ -136,11 +169,11 @@ async function maybeRerank(
   summary: ProjectSummary,
   pool: SubredditCandidate[]
 ): Promise<SubredditCandidate[]> {
-  if (!appState.apiKey.value || pool.length === 0) return pool;
+  if (!providerReady() || pool.length === 0) return pool;
   reddit.reranking.value = true;
   try {
     const provider = getProvider(appState.providerId.value);
-    return await rerankWithAI(summary, pool, provider, appState.apiKey.value);
+    return await rerankWithAI(summary, pool, provider, providerConfig());
   } finally {
     reddit.reranking.value = false;
   }
@@ -224,7 +257,7 @@ export async function generatePost(): Promise<void> {
   try {
     const provider = getProvider(appState.providerId.value);
     const { system, user } = buildRedditPrompt(summary, sub, reddit.rules.value);
-    const raw = await generate(provider, { system, user }, appState.apiKey.value);
+    const raw = await generate(provider, { system, user }, providerConfig());
     const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     const obj = JSON.parse(cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1)) as {
       title: string; body: string;

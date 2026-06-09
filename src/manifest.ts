@@ -13,6 +13,7 @@ export default defineManifest({
     "https://www.reddit.com/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
-    "https://generativelanguage.googleapis.com/*"
+    "https://generativelanguage.googleapis.com/*",
+    "http://localhost/*"
   ]
 });

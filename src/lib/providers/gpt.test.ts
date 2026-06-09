@@ -3,7 +3,7 @@ import { gpt } from "./gpt";
 
 describe("gpt adapter", () => {
   it("builds a bearer-auth request", () => {
-    const req = gpt.buildRequest({ system: "sys", user: "hi" }, "sk-openai");
+    const req = gpt.buildRequest({ system: "sys", user: "hi" }, { apiKey: "sk-openai" });
     expect(req.url).toBe("https://api.openai.com/v1/chat/completions");
     expect(req.headers.get("authorization")).toBe("Bearer sk-openai");
   });

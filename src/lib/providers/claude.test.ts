@@ -3,7 +3,7 @@ import { claude } from "./claude";
 
 describe("claude adapter", () => {
   it("builds a request with the direct-browser header", () => {
-    const req = claude.buildRequest({ system: "sys", user: "hi" }, "sk-ant-key");
+    const req = claude.buildRequest({ system: "sys", user: "hi" }, { apiKey: "sk-ant-key" });
     expect(req.url).toBe("https://api.anthropic.com/v1/messages");
     expect(req.headers.get("x-api-key")).toBe("sk-ant-key");
     expect(req.headers.get("anthropic-dangerous-direct-browser-access")).toBe("true");

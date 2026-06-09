@@ -67,4 +67,27 @@ describe("storage", () => {
     await storage.clearRedditSession();
     expect(await storage.getRedditSession()).toBeNull();
   });
+
+  it("accepts ollama as a valid provider id", async () => {
+    await storage.setProvider("ollama");
+    expect(await storage.getProvider()).toBe("ollama");
+  });
+
+  it("returns the default base URL when ollama base url is not set", async () => {
+    expect(await storage.getOllamaBaseUrl()).toBe("http://localhost:11434");
+  });
+
+  it("stores and reads ollama base url", async () => {
+    await storage.setOllamaBaseUrl("http://192.168.1.10:11434");
+    expect(await storage.getOllamaBaseUrl()).toBe("http://192.168.1.10:11434");
+  });
+
+  it("returns empty string when ollama model is not set", async () => {
+    expect(await storage.getOllamaModel()).toBe("");
+  });
+
+  it("stores and reads ollama model", async () => {
+    await storage.setOllamaModel("llama3.2:latest");
+    expect(await storage.getOllamaModel()).toBe("llama3.2:latest");
+  });
 });
