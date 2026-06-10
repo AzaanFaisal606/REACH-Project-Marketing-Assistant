@@ -19,6 +19,9 @@
   /* lines + feedback */
   --border: #313131;
   --border-strong: #3f3f40;
+  /* divider — a muted shade of the accent so it reads as a deliberate amber rule,
+     not just another border. Derived from --accent, dimmed toward the surface. */
+  --divider: color-mix(in srgb, var(--accent) 55%, var(--border));
   --error: #d98c7a;
   --success: #8bbf7a;
 

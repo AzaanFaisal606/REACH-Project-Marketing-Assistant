@@ -4,6 +4,18 @@
   background: var(--surface-2); padding: 3px 8px; border-radius: var(--radius-pill);
 }
 
+/* horizontal divider — a decorative amber wave rule (see WaveDivider.tsx). The
+   parent panels are flex columns with their own gap (input-panel 10px,
+   reddit-tab 12px), and flex `gap` still applies on each side. To keep the
+   visible space ABOVE and BELOW every divider identical (24px), the per-panel
+   margin below cancels that panel's gap: 24 − gap. */
+.divider {
+  width: 100%; margin: 0; line-height: 0;
+}
+.wave-divider { display: block; width: 100%; height: 16px; }
+.input-panel > .divider { margin: 14px 0; }  /* 14 + 10 gap = 24 each side */
+.reddit-tab > .divider  { margin: 12px 0; }  /* 12 + 12 gap = 24 each side */
+
 /* input panel */
 .input-panel { display: flex; flex-direction: column; gap: 10px; }
 .input-panel h2 { font-size: var(--fs-13); font-weight: var(--fw-semibold); margin: 0; }
@@ -115,6 +127,13 @@
   color: var(--error); border-color: var(--error);
   background: color-mix(in srgb, var(--error) 12%, var(--surface));
 }
+/* When two caution boxes stack (promo-restriction + karma warning), the panel's
+   12px flex gap leaves too much air between them — pull the second up so the
+   pair reads as one warning block. */
+.caution + .caution { margin-top: -6px; }
+
+/* Optional user-prompt steering field before Generate. */
+.user-prompt { resize: vertical; }
 
 /* inline alert/error box for the Reddit flow (search failures, rate limit) */
 .alert-box {

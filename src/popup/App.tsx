@@ -6,6 +6,7 @@ import { Settings } from "./components/Settings";
 import { InputPanel } from "./components/InputPanel";
 import { RedditTab } from "./tabs/RedditTab";
 import { ComingSoonTab } from "./tabs/ComingSoonTab";
+import logoUrl from "/icons/icon-128.png"; // 128 → crisp when the browser scales it to the 28px header slot (incl. hi-DPI)
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "reddit", label: "Reddit" },
@@ -20,7 +21,11 @@ export function App() {
   return (
     <div class="app">
       <header class="app-header">
-        <span class="brand">REACH</span>
+        <div class="brand-group">
+          <img class="brand-logo" src={logoUrl} alt="" width="28" height="28" />
+          <span class="brand">REACH</span>
+          <span class="beta-tag">beta</span>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {providerReady() && (
             <span class="provider-chip">{PROVIDERS[appState.providerId.value].label} ✓</span>

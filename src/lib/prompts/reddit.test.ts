@@ -25,4 +25,13 @@ describe("buildRedditPrompt", () => {
     expect(system).toContain("title");
     expect(system).toContain("body");
   });
+  it("appends the optional user prompt when provided", () => {
+    const { user } = buildRedditPrompt(summary, "webdev", rules, "  mention it is open source  ");
+    expect(user).toContain("Additional instructions from the user");
+    expect(user).toContain("mention it is open source"); // trimmed
+  });
+  it("omits the user-prompt section when it is blank", () => {
+    const { user } = buildRedditPrompt(summary, "webdev", rules, "   ");
+    expect(user).not.toContain("Additional instructions from the user");
+  });
 });

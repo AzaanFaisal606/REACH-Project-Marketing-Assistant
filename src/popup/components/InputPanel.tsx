@@ -4,6 +4,7 @@ import { parseRepoUrl } from "@/lib/github/parse-url";
 import { fetchRepoContext } from "@/lib/github/fetch-repo";
 import { storage } from "@/lib/storage/storage";
 import { readFileText } from "./read-file";
+import { WaveDivider } from "./WaveDivider";
 export { readFileText };
 
 export function InputPanel() {
@@ -95,9 +96,12 @@ export function InputPanel() {
       <button class="secondary" disabled={analyzing.value} onClick={onConnectGithub}>
         {appState.githubConnected.value ? "Reconnect GitHub" : "Connect GitHub (for private repos)"}
       </button>
-      {appState.githubConnected.value && <p class="connected">GitHub connected ✓</p>}
+      {appState.githubConnected.value && (
+        <p class="connected">GitHub connected ✓ (private repo URLs now work)</p>
+      )}
       {repoErr && <p class="error">{repoErr}</p>}
       {appState.status.value && <p class="status">{appState.status.value}</p>}
+      <WaveDivider />
       {appState.summary.value && (
         <div class="summary-chip">✓ {appState.summary.value.valueProp}</div>
       )}

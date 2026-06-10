@@ -13,6 +13,21 @@ export interface SubredditCandidate {
 
 const MIN_SUBSCRIBERS = 1000;
 const W_OVERLAP = 10;
+
+// Reddit's over18 flag is self-reported and often unset on adult subs, so it
+// alone misses plenty. Drop any candidate whose name/title/description contains
+// one of these as a substring. Curated to terms that are not substrings of
+// common benign words (e.g. "porn"/"nsfw"/"xxx" never appear inside a normal
+// tech sub's text), so substring matching here won't false-positive a dev sub.
+const NSFW_WORDS = [
+  "nsfw", "porn", "hentai", "rule34", "gonewild", "xxx",
+  "nude", "nudes", "boobs", "milf", "fetish", "camgirl", "onlyfans"
+];
+
+function isNsfw(c: SubredditCandidate): boolean {
+  const hay = `${c.name} ${c.title} ${c.description}`.toLowerCase();
+  return NSFW_WORDS.some((w) => hay.includes(w));
+}
 // Size matters far less than relevance — a huge generic sub buries your post,
 // a smaller on-topic one actually sees it. Keep size as a gentle tiebreaker
 // only (was 1.0; that let 10M-member subs dominate single-axis niche ones).
@@ -66,7 +81,7 @@ export function rankSubreddits(
   limit: number = TOP_N
 ): SubredditCandidate[] {
   const scored = candidates
-    .filter((c) => !c.over18 && c.subscribers >= MIN_SUBSCRIBERS)
+    .filter((c) => !c.over18 && !isNsfw(c) && c.subscribers >= MIN_SUBSCRIBERS)
     .map((c) => {
       const overlap = keywordOverlap(c, keywords);
       const score = overlap * W_OVERLAP + Math.log10(c.subscribers + 1) * W_SIZE;

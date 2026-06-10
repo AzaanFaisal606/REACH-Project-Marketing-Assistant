@@ -19,6 +19,19 @@ describe("rankSubreddits", () => {
     expect(ranked.find((r) => r.name === "nsfwsub")).toBeUndefined();
     expect(ranked.find((r) => r.name === "tinysubreddit")).toBeUndefined();
   });
+  it("filters adult subs by banned words even when over18 is unset", () => {
+    // over18:false but the name/description are clearly adult — Reddit's flag is
+    // self-reported and often missing, so the word filter must still drop these.
+    const adult: SubredditCandidate[] = [
+      { name: "webdev", title: "Web Development", description: "build web apps", subscribers: 2_000_000, over18: false },
+      { name: "webapps_porn", title: "x", description: "web apps", subscribers: 800_000, over18: false },
+      { name: "appgonewild", title: "NSFW web apps", description: "web apps", subscribers: 600_000, over18: false }
+    ];
+    const ranked = rankSubreddits(adult, ["web", "apps"]);
+    expect(ranked.find((r) => r.name === "webapps_porn")).toBeUndefined();
+    expect(ranked.find((r) => r.name === "appgonewild")).toBeUndefined();
+    expect(ranked.find((r) => r.name === "webdev")).toBeDefined(); // clean sub survives
+  });
   it("returns at most 5", () => {
     const many: SubredditCandidate[] = Array.from({ length: 12 }, (_, i) => ({
       name: `sub${i}`, title: "web apps dev", description: "web apps", subscribers: 10_000 + i, over18: false

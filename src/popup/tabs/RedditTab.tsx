@@ -1,6 +1,7 @@
 import { appState, reddit, findCommunities, selectSubreddit, generatePost } from "../state";
 import { SubredditCard } from "../components/SubredditCard";
 import { DraftEditor } from "../components/DraftEditor";
+import { WaveDivider } from "../components/WaveDivider";
 
 export function RedditTab() {
   if (!appState.summary.value) {
@@ -54,6 +55,14 @@ export function RedditTab() {
             </p>
           )}
           <p class="caution">⚠ Many subs enforce karma/account-age minimums via automod. Check before posting.</p>
+          <WaveDivider />
+          <textarea
+            class="user-prompt"
+            rows={2}
+            placeholder="User Prompt (Optional)"
+            value={reddit.userPrompt.value}
+            onInput={(e) => (reddit.userPrompt.value = (e.target as HTMLTextAreaElement).value)}
+          />
           <button class="primary" disabled={reddit.generating.value} onClick={generatePost}>
             {reddit.generating.value ? "Generating…" : `Generate post for r/${reddit.selected.value}`}
           </button>

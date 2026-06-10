@@ -108,7 +108,9 @@ export async function runAnalysis(projectContext: string): Promise<void> {
     return;
   }
   analyzing.value = true;
-  appState.status.value = "Analyzing project…";
+  appState.status.value = appState.providerId.value === "ollama"
+    ? "Analyzing project… (first run may be slow while the model loads into VRAM)"
+    : "Analyzing project…";
   try {
     const provider = getProvider(appState.providerId.value);
     const summary = await analyze(projectContext, provider, providerConfig(), generate);
@@ -131,6 +133,7 @@ export const reddit = {
   rules: signal<SubredditRule[]>([]),
   restrictsPromo: signal<boolean>(false),
   generating: signal<boolean>(false),
+  userPrompt: signal<string>(""),
   draftTitle: signal<string>(""),
   draftBody: signal<string>(""),
   error: signal<string>(""),
@@ -156,6 +159,7 @@ function resetRedditFlow(): void {
   reddit.selected.value = null;
   reddit.rules.value = [];
   reddit.restrictsPromo.value = false;
+  reddit.userPrompt.value = "";
   reddit.draftTitle.value = "";
   reddit.draftBody.value = "";
   reddit.error.value = "";
@@ -256,7 +260,7 @@ export async function generatePost(): Promise<void> {
   reddit.error.value = "";
   try {
     const provider = getProvider(appState.providerId.value);
-    const { system, user } = buildRedditPrompt(summary, sub, reddit.rules.value);
+    const { system, user } = buildRedditPrompt(summary, sub, reddit.rules.value, reddit.userPrompt.value);
     const raw = await generate(provider, { system, user }, providerConfig());
     const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     const obj = JSON.parse(cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1)) as {

@@ -4,7 +4,14 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
 }
+.brand-group { display: flex; align-items: center; gap: 7px; }
+.brand-logo { display: block; width: 28px; height: 28px; object-fit: contain; }
 .brand { font-weight: var(--fw-semibold); letter-spacing: 0.5px; }
+/* beta tag — same pill style as the provider chip in the header */
+.beta-tag {
+  font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--surface-2); padding: 2px 7px; border-radius: var(--radius-pill);
+}
 .gear { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; padding: 4px; line-height: 1; }
 .gear:hover { color: var(--text); }
 

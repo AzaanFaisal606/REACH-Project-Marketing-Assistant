@@ -1,16 +1,36 @@
 button.primary {
-  background: var(--accent); color: var(--on-accent); border: none;
+  /* Matte gradient: a small diagonal light-corner → dark-corner shift gives
+     subtle depth without any gloss/shine. ~135° (not vertical) avoids the
+     embossed 3D look. Stops stay close in luminance so it reads flat. */
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 90%, #fff) 0%,
+    var(--accent) 52%,
+    var(--accent-press) 100%
+  );
+  color: var(--on-accent); border: none;
   padding: 10px; border-radius: var(--radius-lg); font-weight: var(--fw-semibold);
   font-size: var(--fs-13); cursor: pointer; width: 100%;
 }
-button.primary:hover:not(:disabled) { background: var(--accent-press); }
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    var(--accent) 0%,
+    var(--accent-press) 100%
+  );
+}
 button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 button.secondary {
-  background: var(--surface-2); color: var(--text); border: 1px solid var(--border-strong);
+  /* Matte gradient on the neutral surface — barely-there, just enough to lift it
+     off a flat fill. */
+  background: linear-gradient(135deg, var(--surface-3) 0%, var(--surface-2) 100%);
+  color: var(--text); border: 1px solid var(--border-strong);
   padding: 10px; border-radius: var(--radius-lg); font-size: var(--fs-13); cursor: pointer;
 }
-button.secondary:hover:not(:disabled) { background: var(--surface-3); }
+button.secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--surface-3) 0%, var(--surface-3) 100%);
+}
 button.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 input, textarea, select {

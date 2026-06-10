@@ -18,9 +18,16 @@ function rulesBlock(rules: SubredditRule[]): string {
 export function buildRedditPrompt(
   summary: ProjectSummary,
   subreddit: string,
-  rules: SubredditRule[]
+  rules: SubredditRule[],
+  userPrompt = ""
 ): { system: string; user: string } {
   const system = REDDIT_SYSTEM.replace("{subreddit}", subreddit);
+  // Optional free-text steering from the user. Appended as part of the user
+  // message so it influences this post without overriding the hard system rules
+  // (no link in title, problem-first, obey subreddit rules).
+  const extra = userPrompt.trim()
+    ? `\n\nAdditional instructions from the user (honor these unless they conflict with the rules above):\n${userPrompt.trim()}`
+    : "";
   const user = `Target subreddit: r/${subreddit}
 
 Project:
@@ -31,6 +38,7 @@ Project:
 
 Subreddit rules to comply with:
 ${rulesBlock(rules)}
+${extra}
 
 Write the post now as JSON.`;
   return { system, user };
