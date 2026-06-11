@@ -6,6 +6,7 @@ import { Settings } from "./components/Settings";
 import { InputPanel } from "./components/InputPanel";
 import { RedditTab } from "./tabs/RedditTab";
 import { ComingSoonTab } from "./tabs/ComingSoonTab";
+import { LinkedInTab } from "./tabs/LinkedInTab";
 import logoUrl from "/icons/icon-128.png"; // 128 → crisp when the browser scales it to the 28px header slot (incl. hi-DPI)
 
 const TABS: { id: TabId; label: string }[] = [
@@ -51,7 +52,7 @@ export function App() {
           </nav>
           {appState.tab.value === "reddit" && <RedditTab />}
           {appState.tab.value === "x" && <ComingSoonTab platform="X" />}
-          {appState.tab.value === "linkedin" && <ComingSoonTab platform="LinkedIn" />}
+          {appState.tab.value === "linkedin" && <LinkedInTab />}
         </main>
       )}
     </div>

@@ -32,7 +32,9 @@ const KEYS = {
   githubToken: "githubToken",
   redditSession: "redditSession",
   ollamaBaseUrl: "ollamaBaseUrl",
-  ollamaModel: "ollamaModel"
+  ollamaModel: "ollamaModel",
+  linkedinDraft: "linkedinDraft",
+  linkedinFounderMode: "linkedinFounderMode"
 } as const;
 
 async function getRaw<T>(key: string): Promise<T | undefined> {
@@ -100,5 +102,20 @@ export const storage = {
   },
   async setOllamaModel(model: string): Promise<void> {
     await setRaw(KEYS.ollamaModel, model);
+  },
+  async getLinkedinDraft(): Promise<string | null> {
+    return (await getRaw<string>(KEYS.linkedinDraft)) ?? null;
+  },
+  async setLinkedinDraft(post: string): Promise<void> {
+    await setRaw(KEYS.linkedinDraft, post);
+  },
+  async clearLinkedinDraft(): Promise<void> {
+    await chrome.storage.local.remove(KEYS.linkedinDraft);
+  },
+  async getLinkedinFounderMode(): Promise<boolean> {
+    return (await getRaw<boolean>(KEYS.linkedinFounderMode)) ?? false;
+  },
+  async setLinkedinFounderMode(on: boolean): Promise<void> {
+    await setRaw(KEYS.linkedinFounderMode, on);
   }
 };
