@@ -14,6 +14,7 @@ import { fetchSubredditRules, type SubredditRule } from "@/lib/reddit/rules";
 import { restrictsSelfPromotion } from "@/lib/reddit/restrictions";
 import { buildRedditPrompt } from "@/lib/prompts/reddit";
 import { buildSubmitUrl } from "@/lib/reddit/submit-url";
+import { generateLinkedInPost } from "@/lib/linkedin/generate";
 
 export type TabId = "reddit" | "x" | "linkedin";
 
@@ -46,14 +47,16 @@ export function providerReady(): boolean {
 }
 
 export async function hydrate(): Promise<void> {
-  const [provider, key, summary, githubToken, session, ollamaBaseUrl, ollamaModel] = await Promise.all([
+  const [provider, key, summary, githubToken, session, ollamaBaseUrl, ollamaModel, liDraft, liFounder] = await Promise.all([
     storage.getProvider(),
     storage.getApiKey(),
     storage.getSummary(),
     storage.getGithubToken(),
     storage.getRedditSession(),
     storage.getOllamaBaseUrl(),
-    storage.getOllamaModel()
+    storage.getOllamaModel(),
+    storage.getLinkedinDraft(),
+    storage.getLinkedinFounderMode()
   ]);
   if (provider) appState.providerId.value = provider;
   appState.apiKey.value = key;
@@ -75,6 +78,9 @@ export async function hydrate(): Promise<void> {
       reddit.draftBody.value = existing?.body ?? "";
     }
   }
+
+  linkedin.draft.value = liDraft;
+  linkedin.founderMode.value = liFounder;
 }
 
 export async function saveProvider(id: ProviderId): Promise<void> {
@@ -117,6 +123,7 @@ export async function runAnalysis(projectContext: string): Promise<void> {
     await saveSummary(summary);
     // New project → previous communities/selection/draft no longer apply.
     resetRedditFlow();
+    resetLinkedinFlow();
     appState.status.value = "Analysis ready.";
   } catch (e) {
     appState.status.value = `Analysis failed: ${(e as Error).message}`;
@@ -138,6 +145,14 @@ export const reddit = {
   draftBody: signal<string>(""),
   error: signal<string>(""),
   rateLimited: signal<boolean>(false)
+};
+
+export const linkedin = {
+  founderMode: signal<boolean>(false),
+  userPrompt: signal<string>(""),
+  draft: signal<string | null>(null),
+  generating: signal<boolean>(false),
+  error: signal<string>("")
 };
 
 // Heuristic pool fed to the AI re-ranker, and how many we ultimately show.
@@ -164,6 +179,13 @@ function resetRedditFlow(): void {
   reddit.draftBody.value = "";
   reddit.error.value = "";
   void storage.clearRedditSession();
+}
+
+function resetLinkedinFlow(): void {
+  linkedin.draft.value = null;
+  linkedin.userPrompt.value = "";
+  linkedin.error.value = "";
+  void storage.clearLinkedinDraft();
 }
 
 // AI-refine the heuristic pool when a key is available. Never throws — rerank
@@ -298,4 +320,42 @@ export async function connectGithub(): Promise<string> {
   await storage.setGithubToken(resp.token);
   appState.githubConnected.value = true;
   return resp.token;
+}
+
+export async function setFounderMode(on: boolean): Promise<void> {
+  linkedin.founderMode.value = on;
+  await storage.setLinkedinFounderMode(on);
+}
+
+export async function generateLinkedInPostAction(): Promise<void> {
+  const summary = appState.summary.value;
+  if (!summary) { linkedin.error.value = "Add a project first."; return; }
+  if (!providerReady()) {
+    linkedin.error.value = appState.providerId.value === "ollama"
+      ? "Set the Ollama server URL and pick a model in Settings first."
+      : "Add your API key in Settings first.";
+    return;
+  }
+  linkedin.generating.value = true;
+  linkedin.error.value = "";
+  try {
+    const provider = getProvider(appState.providerId.value);
+    const post = await generateLinkedInPost(
+      summary,
+      linkedin.founderMode.value,
+      linkedin.userPrompt.value,
+      provider,
+      providerConfig()
+    );
+    linkedin.draft.value = post;
+    await storage.setLinkedinDraft(post);
+  } catch (e) {
+    linkedin.error.value = `Generation failed: ${(e as Error).message}`;
+  } finally {
+    linkedin.generating.value = false;
+  }
+}
+
+export async function regenerateLinkedInPost(): Promise<void> {
+  await generateLinkedInPostAction();
 }

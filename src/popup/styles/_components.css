@@ -160,3 +160,44 @@
   font-size: 11px; margin-bottom: 12px;
 }
 .cs-sub { font-size: 11px; color: var(--text-faint); }
+
+/* linkedin tab */
+.linkedin-tab { display: flex; flex-direction: column; gap: 11px; }
+
+.founder-toggle-row { display: flex; align-items: center; gap: 8px; }
+.founder-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--surface); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  padding: 5px 12px 5px 6px; font-size: var(--fs-12); cursor: pointer;
+}
+.founder-toggle .founder-knob {
+  width: 26px; height: 15px; border-radius: var(--radius-pill);
+  background: var(--surface-2); border: 1px solid var(--border); position: relative;
+  transition: background .15s ease;
+}
+.founder-toggle .founder-knob::after {
+  content: ""; position: absolute; top: 1px; left: 1px;
+  width: 11px; height: 11px; border-radius: 50%; background: var(--text-faint);
+  transition: transform .15s ease, background .15s ease;
+}
+.founder-toggle.on { color: var(--text); border-color: var(--accent); }
+.founder-toggle.on .founder-knob { background: var(--accent); border-color: var(--accent); }
+.founder-toggle.on .founder-knob::after { transform: translateX(11px); background: var(--bg); }
+
+.founder-info { position: relative; color: var(--text-faint); cursor: help; font-size: var(--fs-12); }
+.founder-info .hovercard {
+  position: absolute; top: 130%; left: calc(100% + 4px); z-index: 10;
+  width: 168px; padding: 8px 10px;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 11px; line-height: 1.4;
+  opacity: 0; visibility: hidden; transition: opacity .12s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+}
+.founder-info:hover .hovercard,
+.founder-info:focus .hovercard { opacity: 1; visibility: visible; }
+
+.li-draft-editor { display: flex; flex-direction: column; gap: 11px; }
+.li-draft-editor .count { color: var(--accent); font-variant-numeric: tabular-nums; }
+.li-draft-editor .count.over { color: var(--error); }
