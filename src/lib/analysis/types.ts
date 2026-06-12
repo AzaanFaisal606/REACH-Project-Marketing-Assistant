@@ -17,6 +17,8 @@ export interface ProjectSummary {
   tone: string;
   keywords: string[];
   facets?: KeywordFacets;
+  xFormat?: 'tweet' | 'thread';   // auto baseline for the X tab (decided at analysis time)
+  xFormatReason?: string;          // one-line human rationale, surfaced in the X tab UI
 }
 
 export const FACET_KEYS = ["topic", "audience", "geography", "platform"] as const;
@@ -55,6 +57,8 @@ export function isProjectSummary(v: unknown): v is ProjectSummary {
       return v === undefined || allStrings(v);
     });
   };
+  const xFormatOk = o.xFormat == null || o.xFormat === "tweet" || o.xFormat === "thread";
+  const xReasonOk = o.xFormatReason == null || typeof o.xFormatReason === "string";
   return (
     !!o &&
     typeof o.valueProp === "string" &&
@@ -62,6 +66,8 @@ export function isProjectSummary(v: unknown): v is ProjectSummary {
     allStrings(o.keyFeatures) &&
     typeof o.tone === "string" &&
     allStrings(o.keywords) &&
-    facetsOk(o.facets)
+    facetsOk(o.facets) &&
+    xFormatOk &&
+    xReasonOk
   );
 }
