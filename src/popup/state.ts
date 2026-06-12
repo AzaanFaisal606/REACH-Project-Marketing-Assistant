@@ -15,8 +15,12 @@ import { restrictsSelfPromotion } from "@/lib/reddit/restrictions";
 import { buildRedditPrompt } from "@/lib/prompts/reddit";
 import { buildSubmitUrl } from "@/lib/reddit/submit-url";
 import { generateLinkedInPost } from "@/lib/linkedin/generate";
+import { generateXHooks, generateXPostTweets, regenerateXTweet } from "@/lib/x/generate";
+import { filterHashtags } from "@/lib/x/hashtags";
+import type { ToneProfile, XFormat } from "@/lib/prompts/x";
 
 export type TabId = "reddit" | "x" | "linkedin";
+export type { ToneProfile, XFormat } from "@/lib/prompts/x";
 
 export const appState = {
   tab: signal<TabId>("reddit"),
@@ -47,7 +51,7 @@ export function providerReady(): boolean {
 }
 
 export async function hydrate(): Promise<void> {
-  const [provider, key, summary, githubToken, session, ollamaBaseUrl, ollamaModel, liDraft, liFounder] = await Promise.all([
+  const [provider, key, summary, githubToken, session, ollamaBaseUrl, ollamaModel, liDraft, liFounder, xTone, xFormatMode, xSession] = await Promise.all([
     storage.getProvider(),
     storage.getApiKey(),
     storage.getSummary(),
@@ -56,7 +60,10 @@ export async function hydrate(): Promise<void> {
     storage.getOllamaBaseUrl(),
     storage.getOllamaModel(),
     storage.getLinkedinDraft(),
-    storage.getLinkedinFounderMode()
+    storage.getLinkedinFounderMode(),
+    storage.getXToneProfile(),
+    storage.getXFormatMode(),
+    storage.getXSession()
   ]);
   if (provider) appState.providerId.value = provider;
   appState.apiKey.value = key;
@@ -81,6 +88,14 @@ export async function hydrate(): Promise<void> {
 
   linkedin.draft.value = liDraft;
   linkedin.founderMode.value = liFounder;
+
+  x.toneProfile.value = xTone;
+  x.format.value = xFormatMode;
+  if (xSession) {
+    x.hooks.value = xSession.hooks;
+    x.selectedHook.value = xSession.selectedHook;
+    x.draft.value = xSession.draft;
+  }
 }
 
 export async function saveProvider(id: ProviderId): Promise<void> {
@@ -124,6 +139,7 @@ export async function runAnalysis(projectContext: string): Promise<void> {
     // New project → previous communities/selection/draft no longer apply.
     resetRedditFlow();
     resetLinkedinFlow();
+    resetXFlow();
     appState.status.value = "Analysis ready.";
   } catch (e) {
     appState.status.value = `Analysis failed: ${(e as Error).message}`;
@@ -154,6 +170,25 @@ export const linkedin = {
   generating: signal<boolean>(false),
   error: signal<string>("")
 };
+
+export const x = {
+  toneProfile: signal<ToneProfile>("buildinpublic"),
+  format: signal<'auto' | XFormat>("auto"),
+  userPrompt: signal<string>(""),
+  hooks: signal<string[] | null>(null),
+  selectedHook: signal<string | null>(null),
+  draft: signal<string[] | null>(null),
+  generating: signal<boolean>(false),
+  hooksLoading: signal<boolean>(false),
+  regenIndex: signal<number | null>(null),
+  error: signal<string>("")
+};
+
+/** The format generation/UI acts on: 'auto' resolves to the analysis baseline (default 'thread'). */
+export function effectiveXFormat(): XFormat {
+  if (x.format.value === "tweet" || x.format.value === "thread") return x.format.value;
+  return appState.summary.value?.xFormat ?? "thread";
+}
 
 // Heuristic pool fed to the AI re-ranker, and how many we ultimately show.
 const POOL_SIZE = 30;
@@ -186,6 +221,24 @@ function resetLinkedinFlow(): void {
   linkedin.userPrompt.value = "";
   linkedin.error.value = "";
   void storage.clearLinkedinDraft();
+}
+
+function persistXSession(): void {
+  void storage.setXSession({
+    hooks: x.hooks.value,
+    selectedHook: x.selectedHook.value,
+    draft: x.draft.value
+  });
+}
+
+function resetXFlow(): void {
+  x.hooks.value = null;
+  x.selectedHook.value = null;
+  x.draft.value = null;
+  x.userPrompt.value = "";
+  x.error.value = "";
+  x.regenIndex.value = null;
+  void storage.clearXSession();
 }
 
 // AI-refine the heuristic pool when a key is available. Never throws — rerank
@@ -358,4 +411,119 @@ export async function generateLinkedInPostAction(): Promise<void> {
 
 export async function regenerateLinkedInPost(): Promise<void> {
   await generateLinkedInPostAction();
+}
+
+export async function setXToneProfile(p: ToneProfile): Promise<void> {
+  x.toneProfile.value = p;
+  await storage.setXToneProfile(p);
+}
+
+export async function setXFormatMode(m: 'auto' | XFormat): Promise<void> {
+  // Changing the format invalidates any hooks/draft produced for the old format.
+  x.format.value = m;
+  x.hooks.value = null;
+  x.selectedHook.value = null;
+  x.draft.value = null;
+  x.error.value = "";
+  void storage.clearXSession();
+  await storage.setXFormatMode(m);
+}
+
+function xPreflightError(): string | null {
+  if (!appState.summary.value) return "Add a project first.";
+  if (!providerReady()) {
+    return appState.providerId.value === "ollama"
+      ? "Set the Ollama server URL and pick a model in Settings first."
+      : "Add your API key in Settings first.";
+  }
+  return null;
+}
+
+export async function generateXHooksAction(): Promise<void> {
+  const err = xPreflightError();
+  if (err) { x.error.value = err; return; }
+  const summary = appState.summary.value!;
+  x.hooksLoading.value = true;
+  x.error.value = "";
+  try {
+    const provider = getProvider(appState.providerId.value);
+    const hooks = await generateXHooks(summary, x.toneProfile.value, x.userPrompt.value, provider, providerConfig());
+    x.hooks.value = hooks;
+    x.selectedHook.value = null;
+    persistXSession();
+    if (hooks.length === 0) x.error.value = "No hooks returned — try regenerating.";
+  } catch (e) {
+    x.error.value = `Hook generation failed: ${(e as Error).message}`;
+  } finally {
+    x.hooksLoading.value = false;
+  }
+}
+
+export function selectHook(hook: string): void {
+  x.selectedHook.value = hook;
+  persistXSession();
+}
+
+export async function generateXPost(): Promise<void> {
+  const err = xPreflightError();
+  if (err) { x.error.value = err; return; }
+  const summary = appState.summary.value!;
+  const format = effectiveXFormat();
+  if (format === "thread" && !x.selectedHook.value) {
+    x.error.value = "Pick a hook first.";
+    return;
+  }
+  x.generating.value = true;
+  x.error.value = "";
+  try {
+    const provider = getProvider(appState.providerId.value);
+    const hashtags = filterHashtags(summary);
+    const tweets = await generateXPostTweets(
+      summary, format, x.toneProfile.value, hashtags,
+      x.selectedHook.value ?? "", x.userPrompt.value,
+      provider, providerConfig()
+    );
+    x.draft.value = tweets;
+    persistXSession();
+    if (tweets.length === 0) x.error.value = "No tweets returned — try regenerating.";
+  } catch (e) {
+    x.error.value = `Generation failed: ${(e as Error).message}`;
+  } finally {
+    x.generating.value = false;
+  }
+}
+
+export async function regenerateXPost(): Promise<void> {
+  await generateXPost();
+}
+
+export async function regenerateTweet(index: number): Promise<void> {
+  const summary = appState.summary.value;
+  const tweets = x.draft.value;
+  if (!summary || !tweets || index < 0 || index >= tweets.length) return;
+  if (!providerReady()) {
+    x.error.value = appState.providerId.value === "ollama"
+      ? "Set the Ollama server URL and pick a model in Settings first."
+      : "Add your API key in Settings first.";
+    return;
+  }
+  x.regenIndex.value = index;
+  x.error.value = "";
+  try {
+    const provider = getProvider(appState.providerId.value);
+    const replacement = await regenerateXTweet(
+      summary, x.toneProfile.value, tweets, index, x.userPrompt.value, provider, providerConfig()
+    );
+    if (replacement) {
+      if (x.draft.value !== tweets) return; // a newer draft superseded this one mid-flight
+      const next = tweets.slice();
+      next[index] = replacement;
+      x.draft.value = next;
+      persistXSession();
+    }
+  } catch (e) {
+    x.error.value = `Tweet regeneration failed: ${(e as Error).message}`;
+  } finally {
+    x.regenIndex.value = null;
+  }
 }

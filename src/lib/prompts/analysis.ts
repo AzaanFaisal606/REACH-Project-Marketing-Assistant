@@ -14,14 +14,19 @@ explanation — return raw JSON matching exactly this shape:
                               //   Infer from the description even if implicit (a local
                               //   marketplace, regional pricing, a place name). [] if truly global.
     "platform": string[]      // tech/platform — e.g. "chrome extension", "ios", "web app"
-  }
+  },
+  "xFormat": "tweet" | "thread",   // would this launch better as one tweet or a multi-tweet thread?
+  "xFormatReason": string          // one short sentence explaining the choice
 }
 
 Rules:
 - "keywords" must equal the union of all four facet arrays (so older tooling still works).
 - Geography matters: if the project serves a specific place (e.g. "Pakistani retailers",
   "for the UK", "Tokyo events"), put that place in "facets.geography". Do not omit it.
-- Keep each keyword short (1-3 words), lowercase except proper nouns.`;
+- Keep each keyword short (1-3 words), lowercase except proper nouns.
+- xFormat: choose "thread" when the project has enough depth (multiple distinct features, a
+  non-obvious problem, or a technical story) to sustain several connected tweets; otherwise "tweet".
+- Keep xFormatReason to one sentence.`;
 
 export function analysisUserPrompt(projectContext: string): string {
   return `Project context:\n\n${projectContext}\n\nReturn the JSON object now.`;

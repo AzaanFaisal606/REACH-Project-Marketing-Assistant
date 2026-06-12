@@ -22,8 +22,14 @@ export function DraftEditor() {
         />
       </label>
       <div class="draft-actions">
-        <button class="secondary" disabled={reddit.generating.value} onClick={regeneratePost}>
-          {reddit.generating.value ? "…" : "↻ Regenerate"}
+        <button
+          class="icon-btn"
+          disabled={reddit.generating.value}
+          onClick={regeneratePost}
+          aria-label="Regenerate"
+          title="Regenerate"
+        >
+          {reddit.generating.value ? "…" : "↻"}
         </button>
         <button class="primary" disabled={tooLong || !reddit.draftTitle.value} onClick={openSubmit}>
           Open Reddit submit page →

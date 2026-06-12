@@ -3,6 +3,7 @@ import type { ProviderId } from "@/lib/providers/types";
 import type { ProjectSummary } from "@/lib/analysis/types";
 import type { SubredditCandidate } from "@/lib/reddit/rank";
 import type { SubredditRule } from "@/lib/reddit/rules";
+import type { ToneProfile, XFormat } from "@/lib/prompts/x";
 
 export interface RedditSession {
   candidates: SubredditCandidate[];
@@ -10,7 +11,14 @@ export interface RedditSession {
   rules: SubredditRule[];
 }
 
+export interface XSession {
+  hooks: string[] | null;
+  selectedHook: string | null;
+  draft: string[] | null;
+}
+
 const VALID_PROVIDERS = ["claude", "gpt", "gemini", "ollama"] as const;
+const VALID_TONE_PROFILES = ["buildinpublic", "datadriven", "technical", "hottake"] as const;
 
 // NOTE: a fuller isProjectSummary predicate will be added to src/lib/analysis/types.ts in a later task;
 // this local check is intentional for now to avoid a forward dependency.
@@ -34,7 +42,10 @@ const KEYS = {
   ollamaBaseUrl: "ollamaBaseUrl",
   ollamaModel: "ollamaModel",
   linkedinDraft: "linkedinDraft",
-  linkedinFounderMode: "linkedinFounderMode"
+  linkedinFounderMode: "linkedinFounderMode",
+  xToneProfile: "xToneProfile",
+  xFormatMode: "xFormatMode",
+  xSession: "xSession"
 } as const;
 
 async function getRaw<T>(key: string): Promise<T | undefined> {
@@ -117,5 +128,30 @@ export const storage = {
   },
   async setLinkedinFounderMode(on: boolean): Promise<void> {
     await setRaw(KEYS.linkedinFounderMode, on);
+  },
+  async getXToneProfile(): Promise<ToneProfile> {
+    const raw = await getRaw<string>(KEYS.xToneProfile);
+    return (VALID_TONE_PROFILES as readonly string[]).includes(raw ?? "")
+      ? (raw as ToneProfile)
+      : "buildinpublic";
+  },
+  async setXToneProfile(p: ToneProfile): Promise<void> {
+    await setRaw(KEYS.xToneProfile, p);
+  },
+  async getXFormatMode(): Promise<'auto' | XFormat> {
+    const raw = await getRaw<string>(KEYS.xFormatMode);
+    return raw === "tweet" || raw === "thread" ? raw : "auto";
+  },
+  async setXFormatMode(m: 'auto' | XFormat): Promise<void> {
+    await setRaw(KEYS.xFormatMode, m);
+  },
+  async getXSession(): Promise<XSession | null> {
+    return (await getRaw<XSession>(KEYS.xSession)) ?? null;
+  },
+  async setXSession(s: XSession): Promise<void> {
+    await setRaw(KEYS.xSession, s);
+  },
+  async clearXSession(): Promise<void> {
+    await chrome.storage.local.remove(KEYS.xSession);
   }
 };

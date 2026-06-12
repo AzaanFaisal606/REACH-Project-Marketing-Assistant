@@ -34,8 +34,14 @@ export function LinkedInDraftEditor() {
       </label>
       {over && <p class="error">Post exceeds LinkedIn's {LINKEDIN_MAX}-char limit.</p>}
       <div class="draft-actions">
-        <button class="secondary" disabled={linkedin.generating.value} onClick={regenerateLinkedInPost}>
-          {linkedin.generating.value ? "…" : "↻ Regenerate"}
+        <button
+          class="icon-btn"
+          disabled={linkedin.generating.value}
+          onClick={regenerateLinkedInPost}
+          aria-label="Regenerate"
+          title="Regenerate"
+        >
+          {linkedin.generating.value ? "…" : "↻"}
         </button>
         <button class="secondary" onClick={openLinkedIn}>Open LinkedIn →</button>
         <button class="primary" disabled={!post} onClick={copy}>
