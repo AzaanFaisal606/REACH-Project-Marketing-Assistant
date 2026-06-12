@@ -2,11 +2,23 @@
 
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; background: var(--surface);
+  /* amber accent rule under the header bar */
+  border-bottom: 2px solid var(--accent);
 }
-.brand-group { display: flex; align-items: center; gap: 7px; }
-.brand-logo { display: block; width: 28px; height: 28px; object-fit: contain; }
-.brand { font-weight: var(--fw-semibold); letter-spacing: 0.5px; }
+.brand-group { display: flex; align-items: center; gap: 10px; }
+.brand-logo { display: block; width: 30px; height: 30px; object-fit: contain; }
+/* stacked wordmark + tagline */
+.brand-text { display: flex; flex-direction: column; }
+.brand-line { display: flex; align-items: center; gap: 7px; }
+.brand {
+  font-family: var(--font-display); font-weight: var(--fw-semibold);
+  font-size: 18px; letter-spacing: 1.5px; line-height: 1.1; color: var(--text);
+}
+.brand-tagline {
+  font-family: var(--font-display); font-size: 10px; letter-spacing: 0.5px;
+  color: var(--text-faint);
+}
 /* beta tag — same pill style as the provider chip in the header */
 .beta-tag {
   font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;
@@ -22,6 +34,6 @@
 .tab {
   flex: 1; text-align: center; padding: 7px; border: none; background: none;
   color: var(--text-faint); cursor: pointer; border-radius: var(--radius-pill);
-  font-size: var(--fs-13); font-family: inherit;
+  font-size: var(--fs-13); font-family: var(--font-display);
 }
 .tab.active { background: var(--accent); color: var(--on-accent); font-weight: var(--fw-semibold); }

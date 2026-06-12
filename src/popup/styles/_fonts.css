@@ -1,3 +1,21 @@
+/* Self-hosted Iosevka Charon (OFL) — display face for buttons/tabs/brand/headline/toggles.
+   Latin subset only; Google serves 400 + 700 (no 600). The 700 face is mapped to the
+   600–700 weight range so semibold UI elements use the real bold cut, not a synthetic one. */
+@font-face {
+  font-family: "Iosevka Charon";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/iosevka-charon-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Iosevka Charon";
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url("../fonts/iosevka-charon-700.woff2") format("woff2");
+}
+
 /* Self-hosted IBM Plex Sans (OFL) — bundled so the UI never falls back to a system font. */
 @font-face {
   font-family: "IBM Plex Sans";

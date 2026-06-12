@@ -8,5 +8,22 @@ body {
   font-size: var(--fs-13);
   -webkit-font-smoothing: antialiased;
 }
-button { font-family: inherit; }
+/* Display face on all buttons (tab pills, format/founder toggles, primary/secondary…).
+   Text inputs/labels stay on the body sans. */
+button { font-family: var(--font-display); }
 input, textarea, select { font-family: inherit; }
+
+/* Scrollbars — themed to the graphite surface. Chromium-only (extension), so
+   webkit pseudo-elements are reliable. Firefox fallback via scrollbar-color. */
+/* Thumb color = divider hue (muted amber) at 80% opacity so it reads soft, not bright.
+   webkit scrollbars ignore `opacity`, so the alpha is baked via color-mix with transparent. */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--divider) 80%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--divider) 80%, transparent);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--divider); }
+::-webkit-scrollbar-corner { background: transparent; }

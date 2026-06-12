@@ -23,9 +23,14 @@ export function App() {
     <div class="app">
       <header class="app-header">
         <div class="brand-group">
-          <img class="brand-logo" src={logoUrl} alt="" width="28" height="28" />
-          <span class="brand">REACH</span>
-          <span class="beta-tag">beta</span>
+          <img class="brand-logo" src={logoUrl} alt="" width="30" height="30" />
+          <div class="brand-text">
+            <div class="brand-line">
+              <span class="brand">REACH</span>
+              <span class="beta-tag">beta</span>
+            </div>
+            <span class="brand-tagline">launch assistant</span>
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {providerReady() && (
