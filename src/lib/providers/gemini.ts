@@ -1,6 +1,6 @@
 import type { Provider, GenerateInput, ProviderConfig } from "./types";
 
-const MODEL = "gemini-2.0-flash";
+const MODEL = "gemini-2.5-flash";
 const BASE = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 export const gemini: Provider = {
@@ -13,7 +13,8 @@ export const gemini: Provider = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: input.system }] },
-        contents: [{ role: "user", parts: [{ text: input.user }] }]
+        contents: [{ role: "user", parts: [{ text: input.user }] }],
+        generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
       })
     });
   },
@@ -33,7 +34,7 @@ export const gemini: Provider = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: "ping" }] }],
-        generationConfig: { maxOutputTokens: 1 }
+        generationConfig: { maxOutputTokens: 1, thinkingConfig: { thinkingBudget: 0 } }
       })
     });
   }
