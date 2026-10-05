@@ -6,13 +6,12 @@ dist/
 .DS_Store
 
 # Claude / tooling — never commit into this repo
-CLAUDE.md
 .claude/
 .superpowers/
 .worktrees/
 
 # Internal planning/spec docs — not for the public repo
-docs/
+docs/superpowers/
 REACH_Extension_Spec.md
 
 # Cloudflare wrangler local state
