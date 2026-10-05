@@ -41,8 +41,9 @@ export function RedditTab() {
         </div>
       )}
 
+      {/* Sub-specific details only appear once a subreddit is highlighted. */}
       {reddit.selected.value && (
-        <div class="selected-panel">
+        <div class="selected-details">
           {reddit.rules.value.length > 0 && (
             <details class="rules">
               <summary>r/{reddit.selected.value} rules ({reddit.rules.value.length})</summary>
@@ -55,20 +56,29 @@ export function RedditTab() {
             </p>
           )}
           <p class="caution">⚠ Many subs enforce karma/account-age minimums via automod. Check before posting.</p>
-          <WaveDivider />
-          <textarea
-            class="user-prompt"
-            rows={2}
-            placeholder="User Prompt (Optional)"
-            value={reddit.userPrompt.value}
-            onInput={(e) => (reddit.userPrompt.value = (e.target as HTMLTextAreaElement).value)}
-          />
-          <button class="primary" disabled={reddit.generating.value} onClick={generatePost}>
-            {reddit.generating.value ? "Generating…" : `Generate post for r/${reddit.selected.value}`}
-          </button>
-          {(reddit.draftTitle.value || reddit.draftBody.value) && <DraftEditor />}
         </div>
       )}
+
+      {/* Generate + optional prompt are ALWAYS available. With no subreddit
+          highlighted the post is generic (no sub name / rules attached). */}
+      <div class="selected-panel">
+        <WaveDivider />
+        <textarea
+          class="user-prompt"
+          rows={2}
+          placeholder="User Prompt (Optional)"
+          value={reddit.userPrompt.value}
+          onInput={(e) => (reddit.userPrompt.value = (e.target as HTMLTextAreaElement).value)}
+        />
+        <button class="primary" disabled={reddit.generating.value} onClick={generatePost}>
+          {reddit.generating.value
+            ? "Generating…"
+            : reddit.selected.value
+              ? `Generate post for r/${reddit.selected.value}`
+              : "Generate post"}
+        </button>
+        {(reddit.draftTitle.value || reddit.draftBody.value) && <DraftEditor />}
+      </div>
     </div>
   );
 }

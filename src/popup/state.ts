@@ -78,12 +78,9 @@ export async function hydrate(): Promise<void> {
     reddit.selected.value = session.selected;
     reddit.rules.value = session.rules;
     reddit.restrictsPromo.value = restrictsSelfPromotion(session.rules);
-    if (session.selected) {
-      const drafts = await storage.getDrafts();
-      const existing = drafts[session.selected];
-      reddit.draftTitle.value = existing?.title ?? "";
-      reddit.draftBody.value = existing?.body ?? "";
-    }
+    // Load the draft for the resumed context — the selected sub, or the general
+    // no-sub draft when nothing is highlighted.
+    await loadDraftFor(session.selected);
   }
 
   linkedin.draft.value = liDraft;
@@ -303,7 +300,34 @@ export async function findCommunities(append = false): Promise<void> {
   }
 }
 
+// Storage key for the draft generated with NO subreddit selected. A real sub
+// name can never collide with this (Reddit names are [A-Za-z0-9_], no double
+// underscores at the ends by convention, and this is bracketed).
+const GENERAL_DRAFT_KEY = "__general__";
+
+// Load the saved draft for a given context (a subreddit, or null = the general
+// no-sub draft) into the editor signals. Each context has its own draft.
+async function loadDraftFor(sub: string | null): Promise<void> {
+  const drafts = await storage.getDrafts();
+  const existing = drafts[sub ?? GENERAL_DRAFT_KEY];
+  reddit.draftTitle.value = existing?.title ?? "";
+  reddit.draftBody.value = existing?.body ?? "";
+}
+
+// Clicking a subreddit selects it; clicking the already-selected one toggles
+// back to the no-sub (general) context. Selection drives whether sub name +
+// rules get attached to the generated post.
 export async function selectSubreddit(sub: string): Promise<void> {
+  // Toggle off: deselect and fall back to the general draft context.
+  if (reddit.selected.value === sub) {
+    reddit.selected.value = null;
+    reddit.rules.value = [];
+    reddit.restrictsPromo.value = false;
+    await loadDraftFor(null);
+    persistRedditSession();
+    return;
+  }
+
   reddit.selected.value = sub;
   reddit.draftTitle.value = "";
   reddit.draftBody.value = "";
@@ -314,11 +338,8 @@ export async function selectSubreddit(sub: string): Promise<void> {
     if (reddit.selected.value !== sub) return; // a newer selection superseded this one
     reddit.rules.value = rules;
     reddit.restrictsPromo.value = restrictsSelfPromotion(rules);
-    const drafts = await storage.getDrafts();
     if (reddit.selected.value !== sub) return;
-    const existing = drafts[sub];
-    reddit.draftTitle.value = existing?.title ?? "";
-    reddit.draftBody.value = existing?.body ?? "";
+    await loadDraftFor(sub);
     persistRedditSession();
   } catch (e) {
     if (reddit.selected.value === sub) {
@@ -329,8 +350,9 @@ export async function selectSubreddit(sub: string): Promise<void> {
 
 export async function generatePost(): Promise<void> {
   const summary = appState.summary.value;
+  if (!summary) return;
+  // sub may be null → a generic post with no target community / rules attached.
   const sub = reddit.selected.value;
-  if (!summary || !sub) return;
   reddit.generating.value = true;
   reddit.error.value = "";
   try {
@@ -343,7 +365,7 @@ export async function generatePost(): Promise<void> {
     };
     reddit.draftTitle.value = obj.title ?? "";
     reddit.draftBody.value = obj.body ?? "";
-    await storage.setDraft(sub, { title: reddit.draftTitle.value, body: reddit.draftBody.value });
+    await storage.setDraft(sub ?? GENERAL_DRAFT_KEY, { title: reddit.draftTitle.value, body: reddit.draftBody.value });
   } catch (e) {
     reddit.error.value = `Generation failed: ${(e as Error).message}`;
   } finally {
@@ -356,8 +378,8 @@ export async function regeneratePost(): Promise<void> {
 }
 
 export function openSubmit(): void {
+  // sub may be null → buildSubmitUrl opens Reddit's generic submit page.
   const sub = reddit.selected.value;
-  if (!sub) return;
   try {
     const url = buildSubmitUrl(sub, reddit.draftTitle.value, reddit.draftBody.value);
     chrome.tabs.create({ url });

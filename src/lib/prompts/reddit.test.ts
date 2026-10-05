@@ -34,4 +34,17 @@ describe("buildRedditPrompt", () => {
     const { user } = buildRedditPrompt(summary, "webdev", rules, "   ");
     expect(user).not.toContain("Additional instructions from the user");
   });
+  it("builds a generic post with no target sub or rules when subreddit is null", () => {
+    const { system, user } = buildRedditPrompt(summary, null, rules);
+    expect(user).not.toContain("Target subreddit");
+    expect(user).not.toContain("Subreddit rules to comply with");
+    expect(user).not.toContain("No direct links in title"); // rules not attached
+    expect(user).toContain("Turns repos into launch posts"); // project still present
+    expect(system).not.toContain("{subreddit}"); // placeholder resolved, not leaked
+  });
+  it("still honors the optional user prompt for a generic post", () => {
+    const { user } = buildRedditPrompt(summary, null, [], "keep it short");
+    expect(user).toContain("Additional instructions from the user");
+    expect(user).toContain("keep it short");
+  });
 });

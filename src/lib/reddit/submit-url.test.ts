@@ -12,4 +12,8 @@ describe("buildSubmitUrl", () => {
     const longTitle = "x".repeat(TITLE_MAX + 1);
     expect(() => buildSubmitUrl("webdev", longTitle, "body")).toThrow(/title/i);
   });
+  it("uses the generic submit page when no subreddit is given", () => {
+    const url = buildSubmitUrl(null, "Title", "Body");
+    expect(url).toBe("https://www.reddit.com/submit?title=Title&text=Body");
+  });
 });
