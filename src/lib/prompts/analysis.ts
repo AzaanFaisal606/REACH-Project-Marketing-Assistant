@@ -24,6 +24,15 @@ Rules:
 - Geography matters: if the project serves a specific place (e.g. "Pakistani retailers",
   "for the UK", "Tokyo events"), put that place in "facets.geography". Do not omit it.
 - Keep each keyword short (1-3 words), lowercase except proper nouns.
+- TECHNICAL vs. SUBJECT-MATTER keywords: if the project has technical substance (it is
+  built with, or is itself, a specific technology — e.g. neural style transfer, a machine
+  learning model, a compiler, a chrome extension), the "topic" facet MUST lead with those
+  technical keywords, listed BEFORE any subject-matter / hobby keywords. Include the
+  subject-matter keywords too (a fabric-restyling ML tool touches fashion), but put the
+  technical ones first. Example — an ML tool that restyles clothing photos:
+  topic: ["neural style transfer", "machine learning", "computer vision", "image processing",
+  "fashion", "clothing"] — tech first, hobby after; never the reverse. A purely non-technical
+  project (a local bakery, a poetry zine) has no technical keywords and orders naturally.
 - xFormat: choose "thread" when the project has enough depth (multiple distinct features, a
   non-obvious problem, or a technical story) to sustain several connected tweets; otherwise "tweet".
 - Keep xFormatReason to one sentence.`;
