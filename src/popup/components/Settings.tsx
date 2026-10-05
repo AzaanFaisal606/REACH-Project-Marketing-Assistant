@@ -1,199 +1,199 @@
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import {
   appState,
   saveProvider,
   saveApiKey,
-  saveOllamaBaseUrl,
-  saveOllamaModel,
+  saveBaseUrl,
+  saveModel,
   providerConfig,
+  currentAdapter,
+  currentPreset,
   providerReady
 } from "../state";
-import { PROVIDER_LIST, getProvider } from "@/lib/providers";
-import type { ProviderId } from "@/lib/providers/types";
+import { PRESETS, type PresetGroup } from "@/lib/providers/presets";
+import { requestAccess, hostOf } from "@/lib/providers/permissions";
+import { loadModelList } from "../model-list";
 import { describeProviderError } from "@/lib/providers/errors";
-import { listOllamaModels } from "@/lib/providers/ollama";
+import { SearchableSelect } from "./SearchableSelect";
+import type { SelectOption } from "./select-filter";
 
-// Same env var, two shells. PowerShell sets the var as a separate statement;
-// bash/zsh uses an inline prefix. Cross-platform users need the right one.
-const CORS_COMMANDS = [
-  { label: "PowerShell", cmd: `$env:OLLAMA_ORIGINS="chrome-extension://*"; ollama serve` },
-  { label: "macOS / Linux", cmd: `OLLAMA_ORIGINS="chrome-extension://*" ollama serve` }
+const GROUPS: { id: PresetGroup; label: string }[] = [
+  { id: "cloud", label: "Cloud" },
+  { id: "local", label: "Local (your computer)" },
+  { id: "custom", label: "Custom" }
 ];
 
 export function Settings() {
+  const [models, setModels] = useState<SelectOption[] | null>([]);
+  const [modelsError, setModelsError] = useState("");
+  const [access, setAccess] = useState<boolean | null>(null); // null = unknown/not checked
   const [testMsg, setTestMsg] = useState("");
   const [testing, setTesting] = useState(false);
 
-  const [models, setModels] = useState<string[]>([]);
-  const [loadingModels, setLoadingModels] = useState(appState.providerId.value === "ollama");
-  const [modelsError, setModelsError] = useState("");
+  const providerId = appState.providerId.value;
+  const preset = currentPreset();
+  const config = providerConfig();
+  const savedKey = appState.providerSettings.value.apiKeys[providerId] ?? "";
+  const savedModel = appState.providerSettings.value.models[providerId] ?? "";
+  const address = appState.providerSettings.value.baseUrls[providerId] ?? preset.baseUrl;
 
-  const isOllama = appState.providerId.value === "ollama";
+  // Each refresh gets a number; a result that comes back after a newer refresh
+  // started (e.g. the user switched provider mid-load) is dropped.
+  const lastRefresh = useRef(0);
 
-  async function fetchModels(baseUrl: string) {
-    setLoadingModels(true);
+  /** Re-check host access, then load the model list if we can. */
+  async function refresh() {
+    const mine = ++lastRefresh.current;
     setModelsError("");
-    setModels([]);
-    try {
-      const list = await listOllamaModels(baseUrl);
-      setModels(list);
-      // If saved model is no longer in list, clear selection
-      if (appState.ollamaModel.value && !list.includes(appState.ollamaModel.value)) {
-        await saveOllamaModel("");
-      }
-    } catch (e) {
-      setModelsError((e as Error).message);
-    } finally {
-      setLoadingModels(false);
-    }
-  }
-
-  // Fetch models on mount if already on Ollama, and when switching to Ollama
-  useEffect(() => {
-    if (appState.providerId.value === "ollama") {
-      fetchModels(appState.ollamaBaseUrl.value);
-    }
-  }, [appState.providerId.value]);
-
-  async function handleProviderChange(id: ProviderId) {
-    await saveProvider(id);
     setTestMsg("");
+    setModels(null);
+    const res = await loadModelList(appState.providerId.value);
+    if (mine !== lastRefresh.current) return;
+    setAccess(res.access);
+    setModels(res.models.map((m) => ({ id: m.id, label: m.label })));
+    setModelsError(res.error);
   }
 
-  async function handleTest() {
+  useEffect(() => {
+    refresh();
+  }, [providerId]);
+
+  async function onAllow() {
+    // Must run straight from the click: Chrome only shows the prompt for a user gesture.
+    const granted = await requestAccess(config.baseUrl);
+    setAccess(granted);
+    if (granted) refresh();
+  }
+
+  async function onTest() {
     setTesting(true);
     setTestMsg("");
     try {
-      const provider = getProvider(appState.providerId.value);
-      const res = await fetch(provider.testRequest(providerConfig()));
-      const successMsg = isOllama ? "Connected ✓" : "Key works ✓";
-      setTestMsg(
-        res.ok
-          ? successMsg
-          : describeProviderError(provider.label, res.status, await res.text())
-      );
-    } catch (e) {
-      setTestMsg(`Failed: ${(e as Error).message}`);
+      const res = await fetch(currentAdapter().testRequest(config));
+      setTestMsg(res.ok ? "Connected ✓" : describeProviderError(config.label, res.status, await res.text()));
+    } catch {
+      setTestMsg(`Can't reach ${config.baseUrl}. Is the server running?`);
     } finally {
       setTesting(false);
     }
   }
 
-  async function copyCommand(cmd: string) {
+  async function copy(cmd: string) {
     try {
       await navigator.clipboard.writeText(cmd);
     } catch {
-      // clipboard access denied — silently ignore
+      // clipboard access denied — ignore
     }
   }
 
-  const testDisabled = testing || !providerReady();
-  const testLabel = testing ? "Testing…" : isOllama ? "Test connection" : "Test key";
+  // Model options: "Default (…)" first when the preset has one, then the live list.
+  const modelOptions: SelectOption[] | null = models === null ? null : [
+    ...(preset.defaultModel
+      ? [{ id: "", label: `Default (${models.find((m) => m.id === preset.defaultModel)?.label ?? preset.defaultModel})` }]
+      : []),
+    ...models
+  ];
+  // Fall back to typing a model name when the server is reachable but its list failed or came back empty.
+  const showModelText = access === true && models !== null && models.length === 0 &&
+    !(preset.key === "required" && !config.apiKey);
 
   return (
     <div class="settings">
       <label>
         Provider
-        <select
-          value={appState.providerId.value}
-          onChange={(e) => handleProviderChange((e.target as HTMLSelectElement).value as ProviderId)}
-        >
-          {PROVIDER_LIST.map((p) => (
-            <option value={p.id}>{p.label}</option>
+        <select value={providerId} onChange={(e) => saveProvider((e.target as HTMLSelectElement).value)}>
+          {GROUPS.map((g) => (
+            <optgroup label={g.label}>
+              {PRESETS.filter((p) => p.group === g.id).map((p) => <option value={p.id}>{p.label}</option>)}
+            </optgroup>
           ))}
         </select>
       </label>
 
-      {isOllama ? (
-        <>
-          <label>
-            Server URL
-            <input
-              type="text"
-              value={appState.ollamaBaseUrl.value}
-              placeholder="http://localhost:11434"
-              onInput={(e) => saveOllamaBaseUrl((e.target as HTMLInputElement).value)}
-              onBlur={(e) => fetchModels((e.target as HTMLInputElement).value)}
-            />
-          </label>
-
-          <label>
-            Model
-            <div class="ollama-model-row">
-              <select
-                value={appState.ollamaModel.value}
-                disabled={loadingModels}
-                onChange={(e) => saveOllamaModel((e.target as HTMLSelectElement).value)}
-              >
-                {loadingModels ? (
-                  <option value="">Loading models…</option>
-                ) : models.length === 0 ? (
-                  <option value="">— pick a model —</option>
-                ) : (
-                  <>
-                    <option value="">— pick a model —</option>
-                    {models.map((m) => (
-                      <option value={m}>{m}</option>
-                    ))}
-                  </>
-                )}
-              </select>
-              <button
-                class="ollama-refresh"
-                title="Refresh model list"
-                disabled={loadingModels}
-                onClick={() => fetchModels(appState.ollamaBaseUrl.value)}
-              >
-                ↻
-              </button>
-            </div>
-          </label>
-
-          {modelsError && (
-            <p class="error">{modelsError}</p>
-          )}
-          {!modelsError && !loadingModels && models.length === 0 && (
-            <p class="hint">No models installed — run <code>ollama pull &lt;model&gt;</code> first.</p>
-          )}
-
-          <div class="ollama-cors-hint">
-            <p class="hint">
-              Local models run on your machine. Ollama must allow the extension to
-              connect — start it with (use the line for your shell):
-            </p>
-            {CORS_COMMANDS.map(({ label, cmd }) => (
-              <div class="ollama-cmd-row">
-                <code class="ollama-cmd">
-                  <span class="ollama-cmd-os">{label}</span>
-                  {cmd}
-                </code>
-                <button class="ollama-copy" title={`Copy ${label} command`} onClick={() => copyCommand(cmd)}>
-                  Copy
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <label>
-            API key
-            <input
-              type="password"
-              value={appState.apiKey.value}
-              placeholder="Paste your key"
-              onInput={(e) => saveApiKey((e.target as HTMLInputElement).value)}
-            />
-          </label>
-          <p class="hint">
-            Your key is stored on this device only (obfuscated, not encrypted) and is
-            sent only to your chosen provider.
-          </p>
-        </>
+      {preset.group !== "cloud" && (
+        <label>
+          Server address
+          <input
+            type="text"
+            value={address}
+            placeholder="http://localhost:5000/v1"
+            onInput={(e) => saveBaseUrl((e.target as HTMLInputElement).value)}
+            onBlur={() => refresh()}
+          />
+        </label>
       )}
 
-      <button class="primary" disabled={testDisabled} onClick={handleTest}>
-        {testLabel}
+      {preset.key !== "none" && (
+        <label>
+          {preset.key === "optional" ? "API key (only if your server needs one)" : "API key"}
+          <input
+            type="password"
+            value={savedKey}
+            placeholder="Paste your key"
+            onInput={(e) => saveApiKey((e.target as HTMLInputElement).value)}
+            onBlur={() => refresh()}
+          />
+        </label>
+      )}
+      {preset.group === "cloud" && preset.keyUrl && (
+        <a class="hint" href={preset.keyUrl} target="_blank" rel="noreferrer">Get a {preset.label} key ↗</a>
+      )}
+
+      {(preset.setupHint || preset.setupCommands) && (
+        <div class="setup-hint">
+          {preset.setupHint && <p class="hint">{preset.setupHint}</p>}
+          {preset.setupCommands?.map(({ label, cmd }) => (
+            <div class="setup-cmd-row">
+              <code class="setup-cmd"><span class="setup-cmd-os">{label}</span>{cmd}</code>
+              <button class="setup-copy" title={`Copy ${label} command`} onClick={() => copy(cmd)}>Copy</button>
+            </div>
+          ))}
+          {preset.group === "local" && preset.keyUrl && (
+            <a class="hint" href={preset.keyUrl} target="_blank" rel="noreferrer">Get {preset.label} ↗</a>
+          )}
+        </div>
+      )}
+
+      {access === false && (
+        <div class="access-row">
+          <p>REACH needs your permission to talk to {hostOf(config.baseUrl)}.</p>
+          <button class="primary" onClick={onAllow}>Allow access</button>
+        </div>
+      )}
+
+      {showModelText ? (
+        <label>
+          Model
+          <input
+            type="text"
+            value={savedModel}
+            placeholder={preset.defaultModel ?? "Model name, e.g. qwen3:8b"}
+            onInput={(e) => saveModel((e.target as HTMLInputElement).value)}
+          />
+        </label>
+      ) : (
+        <div class="model-row">
+          <SearchableSelect
+            label="Model"
+            options={modelOptions}
+            value={savedModel}
+            placeholder={preset.key === "required" && !config.apiKey ? "Add your key first" : "Pick a model"}
+            onChange={(id) => saveModel(id)}
+          />
+          <button class="model-refresh" title="Refresh model list" disabled={models === null} onClick={() => refresh()}>↻</button>
+        </div>
+      )}
+      {modelsError && <p class="error">{modelsError}{access === true && " You can still type a model name."}</p>}
+
+      {preset.key !== "none" && (
+        <p class="hint">
+          Keys are stored on this device only (obfuscated, not encrypted) and are only
+          sent to the provider you pick.
+        </p>
+      )}
+
+      <button class="primary" disabled={testing || !providerReady() || access === false} onClick={onTest}>
+        {testing ? "Testing…" : "Test connection"}
       </button>
       {testMsg && <p class="test-msg">{testMsg}</p>}
     </div>

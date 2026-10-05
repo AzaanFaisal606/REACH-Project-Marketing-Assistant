@@ -1,12 +1,15 @@
 import { signal } from "@preact/signals";
 import { storage } from "@/lib/storage/storage";
-import type { ProviderId, ProviderConfig } from "@/lib/providers/types";
+import type { Provider, ProviderConfig } from "@/lib/providers/types";
 import type { ProjectSummary } from "@/lib/analysis/types";
 import { flattenFacets } from "@/lib/analysis/types";
-import { getProvider } from "@/lib/providers";
+import { DEFAULT_PRESET_ID, type ProviderPreset } from "@/lib/providers/presets";
+import { resolveConnection, isReady, type ProviderSettings } from "@/lib/providers/connection";
+import { hasAccess, hostOf } from "@/lib/providers/permissions";
+import { migrateLegacySettings } from "@/lib/storage/migrate-legacy";
 import { generate } from "@/lib/providers/types";
 import { analyze } from "@/lib/analysis/analyze";
-import { searchSubreddits, RedditRateLimitError } from "@/lib/reddit/search";
+import { searchSubreddits } from "@/lib/reddit/search";
 import { rankSubreddits, type SubredditCandidate } from "@/lib/reddit/rank";
 import { buildQueryPlan } from "@/lib/reddit/query-plan";
 import { rerankWithAI } from "@/lib/reddit/rerank";
@@ -24,41 +27,60 @@ export type { ToneProfile, XFormat } from "@/lib/prompts/x";
 
 export const appState = {
   tab: signal<TabId>("reddit"),
-  providerId: signal<ProviderId>("claude"),
-  apiKey: signal<string>(""),
-  ollamaBaseUrl: signal<string>("http://localhost:11434"),
-  ollamaModel: signal<string>(""),
+  /** Preset id from src/lib/providers/presets.ts. */
+  providerId: signal<string>(DEFAULT_PRESET_ID),
+  /** Keys, addresses and models saved per preset id. */
+  providerSettings: signal<ProviderSettings>({ apiKeys: {}, baseUrls: {}, models: {} }),
   summary: signal<ProjectSummary | null>(null),
   status: signal<string>(""),
   githubConnected: signal<boolean>(false)
 };
 
-/** Build the ProviderConfig for the currently selected provider.
- *  Cloud providers use apiKey; Ollama uses baseUrl + model. */
+function connection() {
+  return resolveConnection(appState.providerId.value, appState.providerSettings.value);
+}
+/** Request settings for the selected provider. */
 export function providerConfig(): ProviderConfig {
-  if (appState.providerId.value === "ollama") {
-    return { baseUrl: appState.ollamaBaseUrl.value, model: appState.ollamaModel.value };
-  }
-  return { apiKey: appState.apiKey.value };
+  return connection().config;
+}
+export function currentAdapter(): Provider {
+  return connection().adapter;
+}
+export function currentPreset(): ProviderPreset {
+  return connection().preset;
 }
 
-/** True when the current provider has the minimum config to make a request. */
+/** True when the selected provider has everything a request needs. */
 export function providerReady(): boolean {
-  if (appState.providerId.value === "ollama") {
-    return !!appState.ollamaModel.value && !!appState.ollamaBaseUrl.value;
-  }
-  return !!appState.apiKey.value;
+  return isReady(appState.providerId.value, appState.providerSettings.value);
+}
+
+const NOT_READY = "Set up your AI provider in Settings first.";
+
+/** Why a model call can't run right now, or null when it can. */
+async function providerPreflight(): Promise<string | null> {
+  if (!providerReady()) return NOT_READY;
+  const { baseUrl } = providerConfig();
+  if (!(await hasAccess(baseUrl))) return `Allow REACH to reach ${hostOf(baseUrl)} in Settings.`;
+  return null;
+}
+
+/** Checks the provider's host permission; on failure explains it in the status line. */
+export async function ensureProviderAccess(): Promise<boolean> {
+  const { baseUrl } = providerConfig();
+  if (await hasAccess(baseUrl)) return true;
+  appState.status.value = `Allow REACH to reach ${hostOf(baseUrl)} in Settings.`;
+  return false;
 }
 
 export async function hydrate(): Promise<void> {
-  const [provider, key, summary, githubToken, session, ollamaBaseUrl, ollamaModel, liDraft, liFounder, xTone, xFormatMode, xSession] = await Promise.all([
+  await migrateLegacySettings();
+  const [provider, providerSettings, summary, githubToken, session, liDraft, liFounder, xTone, xFormatMode, xSession] = await Promise.all([
     storage.getProvider(),
-    storage.getApiKey(),
+    storage.getProviderSettings(),
     storage.getSummary(),
     storage.getGithubToken(),
     storage.getRedditSession(),
-    storage.getOllamaBaseUrl(),
-    storage.getOllamaModel(),
     storage.getLinkedinDraft(),
     storage.getLinkedinFounderMode(),
     storage.getXToneProfile(),
@@ -66,9 +88,7 @@ export async function hydrate(): Promise<void> {
     storage.getXSession()
   ]);
   if (provider) appState.providerId.value = provider;
-  appState.apiKey.value = key;
-  appState.ollamaBaseUrl.value = ollamaBaseUrl;
-  appState.ollamaModel.value = ollamaModel;
+  appState.providerSettings.value = providerSettings;
   appState.summary.value = summary ?? null;
   appState.githubConnected.value = !!githubToken; // persists across browser sessions
 
@@ -95,21 +115,34 @@ export async function hydrate(): Promise<void> {
   }
 }
 
-export async function saveProvider(id: ProviderId): Promise<void> {
+export async function saveProvider(id: string): Promise<void> {
   appState.providerId.value = id;
   await storage.setProvider(id);
 }
+
+type SettingsMap = keyof ProviderSettings;
+/** Update one per-provider entry; an empty value removes it. */
+function setEntry(map: SettingsMap, id: string, value: string): void {
+  const next = { ...appState.providerSettings.value[map] };
+  if (value) next[id] = value;
+  else delete next[id];
+  appState.providerSettings.value = { ...appState.providerSettings.value, [map]: next };
+}
 export async function saveApiKey(key: string): Promise<void> {
-  appState.apiKey.value = key;
-  await storage.setApiKey(key);
+  setEntry("apiKeys", appState.providerId.value, key);
+  await storage.setApiKey(appState.providerId.value, key);
 }
-export async function saveOllamaBaseUrl(url: string): Promise<void> {
-  appState.ollamaBaseUrl.value = url;
-  await storage.setOllamaBaseUrl(url);
+export async function saveBaseUrl(url: string): Promise<void> {
+  setEntry("baseUrls", appState.providerId.value, url);
+  await storage.setBaseUrl(appState.providerId.value, url);
 }
-export async function saveOllamaModel(model: string): Promise<void> {
-  appState.ollamaModel.value = model;
-  await storage.setOllamaModel(model);
+export async function saveModel(model: string): Promise<void> {
+  await saveModelFor(appState.providerId.value, model);
+}
+/** For async work that started under one provider and may finish after a switch. */
+export async function saveModelFor(id: string, model: string): Promise<void> {
+  setEntry("models", id, model);
+  await storage.setModel(id, model);
 }
 export async function saveSummary(s: ProjectSummary): Promise<void> {
   appState.summary.value = s;
@@ -119,19 +152,14 @@ export async function saveSummary(s: ProjectSummary): Promise<void> {
 export const analyzing = signal<boolean>(false);
 
 export async function runAnalysis(projectContext: string): Promise<void> {
-  if (!providerReady()) {
-    appState.status.value = appState.providerId.value === "ollama"
-      ? "Set the Ollama server URL and pick a model in Settings first."
-      : "Add your API key in Settings first.";
-    return;
-  }
+  const blocked = await providerPreflight();
+  if (blocked) { appState.status.value = blocked; return; }
   analyzing.value = true;
-  appState.status.value = appState.providerId.value === "ollama"
-    ? "Analyzing project… (first run may be slow while the model loads into VRAM)"
-    : "Analyzing project…";
+  appState.status.value = currentPreset().group === "cloud"
+    ? "Analyzing project…"
+    : "Analyzing project… (the first run can be slow while the model loads)";
   try {
-    const provider = getProvider(appState.providerId.value);
-    const summary = await analyze(projectContext, provider, providerConfig(), generate);
+    const summary = await analyze(projectContext, currentAdapter(), providerConfig(), generate);
     await saveSummary(summary);
     // New project → previous communities/selection/draft no longer apply.
     resetRedditFlow();
@@ -156,8 +184,7 @@ export const reddit = {
   userPrompt: signal<string>(""),
   draftTitle: signal<string>(""),
   draftBody: signal<string>(""),
-  error: signal<string>(""),
-  rateLimited: signal<boolean>(false)
+  error: signal<string>("")
 };
 
 export const linkedin = {
@@ -245,11 +272,11 @@ async function maybeRerank(
   summary: ProjectSummary,
   pool: SubredditCandidate[]
 ): Promise<SubredditCandidate[]> {
-  if (!providerReady() || pool.length === 0) return pool;
+  // Re-ranking is an optional refinement: skip it quietly if the model can't be called.
+  if (pool.length === 0 || (await providerPreflight())) return pool;
   reddit.reranking.value = true;
   try {
-    const provider = getProvider(appState.providerId.value);
-    return await rerankWithAI(summary, pool, provider, providerConfig());
+    return await rerankWithAI(summary, pool, currentAdapter(), providerConfig());
   } finally {
     reddit.reranking.value = false;
   }
@@ -260,7 +287,6 @@ export async function findCommunities(append = false): Promise<void> {
   if (!summary) { reddit.error.value = "Add a project first."; return; }
   reddit.finding.value = true;
   reddit.error.value = "";
-  reddit.rateLimited.value = false;
   if (!append) {
     reddit.candidates.value = [];
     reddit.selected.value = null;
@@ -289,12 +315,7 @@ export async function findCommunities(append = false): Promise<void> {
     }
     persistRedditSession();
   } catch (e) {
-    if (e instanceof RedditRateLimitError) {
-      reddit.rateLimited.value = true;
-      reddit.error.value = "⏳ Reddit is rate-limiting requests — wait about a minute, then try again.";
-    } else {
-      reddit.error.value = (e as Error).message;
-    }
+    reddit.error.value = (e as Error).message;
   } finally {
     reddit.finding.value = false;
   }
@@ -353,12 +374,13 @@ export async function generatePost(): Promise<void> {
   if (!summary) return;
   // sub may be null → a generic post with no target community / rules attached.
   const sub = reddit.selected.value;
+  const blocked = await providerPreflight();
+  if (blocked) { reddit.error.value = blocked; return; }
   reddit.generating.value = true;
   reddit.error.value = "";
   try {
-    const provider = getProvider(appState.providerId.value);
     const { system, user } = buildRedditPrompt(summary, sub, reddit.rules.value, reddit.userPrompt.value);
-    const raw = await generate(provider, { system, user }, providerConfig());
+    const raw = await generate(currentAdapter(), { system, user }, providerConfig());
     const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
     const obj = JSON.parse(cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1)) as {
       title: string; body: string;
@@ -405,21 +427,16 @@ export async function setFounderMode(on: boolean): Promise<void> {
 export async function generateLinkedInPostAction(): Promise<void> {
   const summary = appState.summary.value;
   if (!summary) { linkedin.error.value = "Add a project first."; return; }
-  if (!providerReady()) {
-    linkedin.error.value = appState.providerId.value === "ollama"
-      ? "Set the Ollama server URL and pick a model in Settings first."
-      : "Add your API key in Settings first.";
-    return;
-  }
+  const blocked = await providerPreflight();
+  if (blocked) { linkedin.error.value = blocked; return; }
   linkedin.generating.value = true;
   linkedin.error.value = "";
   try {
-    const provider = getProvider(appState.providerId.value);
     const post = await generateLinkedInPost(
       summary,
       linkedin.founderMode.value,
       linkedin.userPrompt.value,
-      provider,
+      currentAdapter(),
       providerConfig()
     );
     linkedin.draft.value = post;
@@ -451,25 +468,19 @@ export async function setXFormatMode(m: 'auto' | XFormat): Promise<void> {
   await storage.setXFormatMode(m);
 }
 
-function xPreflightError(): string | null {
+async function xPreflightError(): Promise<string | null> {
   if (!appState.summary.value) return "Add a project first.";
-  if (!providerReady()) {
-    return appState.providerId.value === "ollama"
-      ? "Set the Ollama server URL and pick a model in Settings first."
-      : "Add your API key in Settings first.";
-  }
-  return null;
+  return providerPreflight();
 }
 
 export async function generateXHooksAction(): Promise<void> {
-  const err = xPreflightError();
+  const err = await xPreflightError();
   if (err) { x.error.value = err; return; }
   const summary = appState.summary.value!;
   x.hooksLoading.value = true;
   x.error.value = "";
   try {
-    const provider = getProvider(appState.providerId.value);
-    const hooks = await generateXHooks(summary, x.toneProfile.value, x.userPrompt.value, provider, providerConfig());
+    const hooks = await generateXHooks(summary, x.toneProfile.value, x.userPrompt.value, currentAdapter(), providerConfig());
     x.hooks.value = hooks;
     x.selectedHook.value = null;
     persistXSession();
@@ -487,7 +498,7 @@ export function selectHook(hook: string): void {
 }
 
 export async function generateXPost(): Promise<void> {
-  const err = xPreflightError();
+  const err = await xPreflightError();
   if (err) { x.error.value = err; return; }
   const summary = appState.summary.value!;
   const format = effectiveXFormat();
@@ -498,12 +509,11 @@ export async function generateXPost(): Promise<void> {
   x.generating.value = true;
   x.error.value = "";
   try {
-    const provider = getProvider(appState.providerId.value);
     const hashtags = filterHashtags(summary);
     const tweets = await generateXPostTweets(
       summary, format, x.toneProfile.value, hashtags,
       x.selectedHook.value ?? "", x.userPrompt.value,
-      provider, providerConfig()
+      currentAdapter(), providerConfig()
     );
     x.draft.value = tweets;
     persistXSession();
@@ -523,18 +533,13 @@ export async function regenerateTweet(index: number): Promise<void> {
   const summary = appState.summary.value;
   const tweets = x.draft.value;
   if (!summary || !tweets || index < 0 || index >= tweets.length) return;
-  if (!providerReady()) {
-    x.error.value = appState.providerId.value === "ollama"
-      ? "Set the Ollama server URL and pick a model in Settings first."
-      : "Add your API key in Settings first.";
-    return;
-  }
+  const blocked = await providerPreflight();
+  if (blocked) { x.error.value = blocked; return; }
   x.regenIndex.value = index;
   x.error.value = "";
   try {
-    const provider = getProvider(appState.providerId.value);
     const replacement = await regenerateXTweet(
-      summary, x.toneProfile.value, tweets, index, x.userPrompt.value, provider, providerConfig()
+      summary, x.toneProfile.value, tweets, index, x.userPrompt.value, currentAdapter(), providerConfig()
     );
     if (replacement) {
       if (x.draft.value !== tweets) return; // a newer draft superseded this one mid-flight

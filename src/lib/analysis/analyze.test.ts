@@ -5,11 +5,11 @@ import type { Provider } from "@/lib/providers/types";
 function fakeProvider(responses: string[]): Provider {
   let i = 0;
   return {
-    id: "claude",
-    label: "Fake",
+    id: "openai-compat",
     buildRequest: () => new Request("https://example.com"),
     parseResponse: () => responses[Math.min(i++, responses.length - 1)],
-    testRequest: () => new Request("https://example.com")
+    testRequest: () => new Request("https://example.com"),
+    listModels: async () => []
   };
 }
 
@@ -19,7 +19,7 @@ describe("analyze", () => {
       valueProp: "v", targetUser: "t", keyFeatures: ["a"], tone: "technical", keywords: ["k1"]
     });
     const gen = vi.fn(async () => json);
-    const out = await analyze("ctx", fakeProvider([json]), { apiKey: "key" }, gen);
+    const out = await analyze("ctx", fakeProvider([json]), { label: "Fake", baseUrl: "", model: "m" }, gen);
     expect(out.keywords).toEqual(["k1"]);
   });
 
@@ -29,7 +29,7 @@ describe("analyze", () => {
     });
     const fenced = "```json\n" + inner + "\n```";
     const gen = vi.fn(async () => fenced);
-    const out = await analyze("ctx", fakeProvider([fenced]), { apiKey: "key" }, gen);
+    const out = await analyze("ctx", fakeProvider([fenced]), { label: "Fake", baseUrl: "", model: "m" }, gen);
     expect(out.valueProp).toBe("v");
   });
 
@@ -40,14 +40,14 @@ describe("analyze", () => {
     const gen = vi.fn()
       .mockResolvedValueOnce("not json at all")
       .mockResolvedValueOnce(good);
-    const out = await analyze("ctx", fakeProvider(["x"]), { apiKey: "key" }, gen);
+    const out = await analyze("ctx", fakeProvider(["x"]), { label: "Fake", baseUrl: "", model: "m" }, gen);
     expect(gen).toHaveBeenCalledTimes(2);
     expect(out.tone).toBe("x");
   });
 
   it("throws after a failed retry", async () => {
     const gen = vi.fn().mockResolvedValue("still not json");
-    await expect(analyze("ctx", fakeProvider(["x"]), { apiKey: "key" }, gen)).rejects.toThrow();
+    await expect(analyze("ctx", fakeProvider(["x"]), { label: "Fake", baseUrl: "", model: "m" }, gen)).rejects.toThrow();
     expect(gen).toHaveBeenCalledTimes(2);
   });
 
@@ -57,13 +57,13 @@ describe("analyze", () => {
     });
     // both attempts return the same structurally-invalid payload → should throw after retry
     const gen = vi.fn().mockResolvedValue(bad);
-    await expect(analyze("ctx", fakeProvider(["x"]), { apiKey: "key" }, gen)).rejects.toThrow();
+    await expect(analyze("ctx", fakeProvider(["x"]), { label: "Fake", baseUrl: "", model: "m" }, gen)).rejects.toThrow();
     expect(gen).toHaveBeenCalledTimes(2);
   });
 
   it("does not retry when gen throws a non-parse error", async () => {
     const gen = vi.fn().mockRejectedValue(new TypeError("network exploded"));
-    await expect(analyze("ctx", fakeProvider(["x"]), { apiKey: "key" }, gen)).rejects.toThrow("network exploded");
+    await expect(analyze("ctx", fakeProvider(["x"]), { label: "Fake", baseUrl: "", model: "m" }, gen)).rejects.toThrow("network exploded");
     expect(gen).toHaveBeenCalledTimes(1); // no retry on a real error
   });
 });

@@ -1,5 +1,6 @@
 import { obfuscate, deobfuscate } from "./obfuscate";
-import type { ProviderId } from "@/lib/providers/types";
+import { getPreset } from "@/lib/providers/presets";
+import type { ProviderSettings } from "@/lib/providers/connection";
 import type { ProjectSummary } from "@/lib/analysis/types";
 import type { SubredditCandidate } from "@/lib/reddit/rank";
 import type { SubredditRule } from "@/lib/reddit/rules";
@@ -17,7 +18,6 @@ export interface XSession {
   draft: string[] | null;
 }
 
-const VALID_PROVIDERS = ["claude", "gpt", "gemini", "ollama"] as const;
 const VALID_TONE_PROFILES = ["buildinpublic", "datadriven", "technical", "hottake"] as const;
 
 // NOTE: a fuller isProjectSummary predicate will be added to src/lib/analysis/types.ts in a later task;
@@ -33,14 +33,14 @@ function looksLikeSummary(v: unknown): v is ProjectSummary {
 }
 
 const KEYS = {
-  apiKey: "apiKey",
   provider: "provider",
+  apiKeys: "apiKeys",
+  baseUrls: "baseUrls",
+  models: "models",
   summary: "summary",
   drafts: "drafts",
   githubToken: "githubToken",
   redditSession: "redditSession",
-  ollamaBaseUrl: "ollamaBaseUrl",
-  ollamaModel: "ollamaModel",
   linkedinDraft: "linkedinDraft",
   linkedinFounderMode: "linkedinFounderMode",
   xToneProfile: "xToneProfile",
@@ -56,21 +56,40 @@ async function setRaw(key: string, value: unknown): Promise<void> {
   await chrome.storage.local.set({ [key]: value });
 }
 
+/** Set one entry of a per-provider map; an empty value removes it. */
+async function setEntry(mapKey: string, id: string, value: string): Promise<void> {
+  const map = (await getRaw<Record<string, string>>(mapKey)) ?? {};
+  if (value) map[id] = value;
+  else delete map[id];
+  await setRaw(mapKey, map);
+}
+
 export const storage = {
-  async getApiKey(): Promise<string> {
-    return deobfuscate((await getRaw<string>(KEYS.apiKey)) ?? "");
-  },
-  async setApiKey(key: string): Promise<void> {
-    await setRaw(KEYS.apiKey, obfuscate(key));
-  },
-  async getProvider(): Promise<ProviderId | undefined> {
+  async getProvider(): Promise<string | undefined> {
     const raw = await getRaw<string>(KEYS.provider);
-    return (VALID_PROVIDERS as readonly string[]).includes(raw ?? "")
-      ? (raw as ProviderId)
-      : undefined;
+    return raw && getPreset(raw) ? raw : undefined;
   },
-  async setProvider(id: ProviderId): Promise<void> {
+  async setProvider(id: string): Promise<void> {
     await setRaw(KEYS.provider, id);
+  },
+  /** Keys, addresses and models saved per provider (keys deobfuscated). */
+  async getProviderSettings(): Promise<ProviderSettings> {
+    const [keys, baseUrls, models] = await Promise.all([
+      getRaw<Record<string, string>>(KEYS.apiKeys),
+      getRaw<Record<string, string>>(KEYS.baseUrls),
+      getRaw<Record<string, string>>(KEYS.models)
+    ]);
+    const apiKeys = Object.fromEntries(Object.entries(keys ?? {}).map(([id, k]) => [id, deobfuscate(k)]));
+    return { apiKeys, baseUrls: baseUrls ?? {}, models: models ?? {} };
+  },
+  async setApiKey(id: string, key: string): Promise<void> {
+    await setEntry(KEYS.apiKeys, id, key && obfuscate(key));
+  },
+  async setBaseUrl(id: string, url: string): Promise<void> {
+    await setEntry(KEYS.baseUrls, id, url);
+  },
+  async setModel(id: string, model: string): Promise<void> {
+    await setEntry(KEYS.models, id, model);
   },
   async getSummary(): Promise<ProjectSummary | undefined> {
     const raw = await getRaw<unknown>(KEYS.summary);
@@ -101,18 +120,6 @@ export const storage = {
   },
   async clearRedditSession(): Promise<void> {
     await chrome.storage.local.remove(KEYS.redditSession);
-  },
-  async getOllamaBaseUrl(): Promise<string> {
-    return (await getRaw<string>(KEYS.ollamaBaseUrl)) ?? "http://localhost:11434";
-  },
-  async setOllamaBaseUrl(url: string): Promise<void> {
-    await setRaw(KEYS.ollamaBaseUrl, url);
-  },
-  async getOllamaModel(): Promise<string> {
-    return (await getRaw<string>(KEYS.ollamaModel)) ?? "";
-  },
-  async setOllamaModel(model: string): Promise<void> {
-    await setRaw(KEYS.ollamaModel, model);
   },
   async getLinkedinDraft(): Promise<string | null> {
     return (await getRaw<string>(KEYS.linkedinDraft)) ?? null;

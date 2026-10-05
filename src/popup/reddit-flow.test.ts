@@ -7,9 +7,10 @@ beforeEach(() => {
     storage: { local: {
       get: vi.fn(async (k: string[]) => Object.fromEntries(k.map((x) => [x, data[x]]))),
       set: vi.fn(async (o: Record<string, unknown>) => { Object.assign(data, o); }),
-      remove: vi.fn(async (x: string) => { delete data[x]; })
+      remove: vi.fn(async (x: string | string[]) => { for (const key of [x].flat()) delete data[key]; })
     } },
-    tabs: { create: vi.fn() }
+    tabs: { create: vi.fn() },
+    permissions: { contains: vi.fn(async () => true), request: vi.fn(async () => true) }
   };
   vi.resetModules();
 });
@@ -75,7 +76,7 @@ describe("reddit flow", () => {
         .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0));
     });
     const { reddit, appState, findCommunities, saveSummary } = await import("./state");
-    appState.apiKey.value = "key-present";
+    appState.providerSettings.value = { apiKeys: { claude: "key-present" }, baseUrls: {}, models: {} };
     await saveSummary({ valueProp: "v", targetUser: "t", keyFeatures: ["f"], tone: "x", keywords: ["webdev", "programming"] });
 
     await findCommunities();
@@ -109,7 +110,7 @@ describe("reddit flow", () => {
     vi.spyOn(genMod, "generate").mockResolvedValue(JSON.stringify({ title: "Generic T", body: "Generic B" }));
     const { storage } = await import("@/lib/storage/storage");
     const { reddit, appState, generatePost, saveSummary } = await import("./state");
-    appState.apiKey.value = "k";
+    appState.providerSettings.value = { apiKeys: { claude: "k" }, baseUrls: {}, models: {} };
     await saveSummary({ valueProp: "v", targetUser: "t", keyFeatures: ["f"], tone: "x", keywords: ["k"] });
     reddit.selected.value = null; // explicitly no sub
 
@@ -138,7 +139,7 @@ describe("reddit flow", () => {
     reddit.selected.value = "old";
     await storage.setRedditSession({ candidates: reddit.candidates.value, selected: "old", rules: [] });
     // Analyze a new project (analyze() is mocked via the provider generate path; stub it)
-    appState.apiKey.value = "k";
+    appState.providerSettings.value = { apiKeys: { claude: "k" }, baseUrls: {}, models: {} };
     const analyzeMod = await import("@/lib/analysis/analyze");
     vi.spyOn(analyzeMod, "analyze").mockResolvedValue({ valueProp: "v", targetUser: "t", keyFeatures: ["f"], tone: "x", keywords: ["new"] });
     await runAnalysis("new project");
@@ -156,7 +157,7 @@ describe("reddit flow", () => {
     });
     await storage.setDraft("webdev", { title: "Resumed", body: "Body" });
     const { reddit, appState, hydrate } = await import("./state");
-    appState.apiKey.value = "k";
+    appState.providerSettings.value = { apiKeys: { claude: "k" }, baseUrls: {}, models: {} };
     await hydrate();
     expect(reddit.candidates.value.map((c) => c.name)).toEqual(["webdev"]);
     expect(reddit.selected.value).toBe("webdev");

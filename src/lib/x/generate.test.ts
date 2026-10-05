@@ -7,7 +7,7 @@ const summary: ProjectSummary = {
   valueProp: "v", targetUser: "u", keyFeatures: ["f"], tone: "t", keywords: ["k"]
 };
 const provider = {} as Provider;
-const config: ProviderConfig = { apiKey: "x" };
+const config: ProviderConfig = { label: "Fake", baseUrl: "", model: "m" };
 const genReturning = (raw: string) =>
   vi.fn(async (_p: Provider, _i: GenerateInput, _c: ProviderConfig) => raw);
 

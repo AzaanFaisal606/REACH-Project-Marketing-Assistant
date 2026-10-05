@@ -5,7 +5,7 @@ import { fetchRepoContext } from "@/lib/github/fetch-repo";
 import { storage } from "@/lib/storage/storage";
 import { readFileText } from "./read-file";
 import { WaveDivider } from "./WaveDivider";
-export { readFileText };
+import { RepoPicker } from "./RepoPicker";
 
 export function InputPanel() {
   const [repoUrl, setRepoUrl] = useState("");
@@ -77,8 +77,18 @@ export function InputPanel() {
         <button class="link-clear" type="button" onClick={clearFile}>Remove README</button>
       )}
       <div class="or">— or —</div>
+      {appState.githubConnected.value && (
+        <RepoPicker
+          selectedUrl={repoUrl}
+          onPick={(url) => {
+            setRepoUrl(url);
+            setRepoErr("");
+            if (fileText) clearFile();
+          }}
+        />
+      )}
       <label class="repo-input">
-        Repository URL
+        {appState.githubConnected.value ? "Or paste any repo URL" : "Repository URL"}
         <input
           type="text"
           placeholder="https://github.com/owner/repo"
@@ -96,9 +106,6 @@ export function InputPanel() {
       <button class="secondary" disabled={analyzing.value} onClick={onConnectGithub}>
         {appState.githubConnected.value ? "Reconnect GitHub" : "Connect GitHub (for private repos)"}
       </button>
-      {appState.githubConnected.value && (
-        <p class="connected">GitHub connected ✓ (private repo URLs now work)</p>
-      )}
       {repoErr && <p class="error">{repoErr}</p>}
       {appState.status.value && <p class="status">{appState.status.value}</p>}
       <WaveDivider />

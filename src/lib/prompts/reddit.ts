@@ -22,9 +22,6 @@ Rules you MUST follow:
 - Keep the title under 300 characters.
 Return ONLY raw JSON: { "title": string, "body": string }. No prose, no code fences.`;
 
-// Backwards-compatible export: the per-subreddit system prompt (tests reference it).
-export const REDDIT_SYSTEM = REDDIT_SYSTEM_SUB;
-
 function rulesBlock(rules: SubredditRule[]): string {
   if (rules.length === 0) return "(No machine-readable rules were available — follow general Reddit etiquette and avoid overt self-promotion.)";
   return rules.map((r, i) => `${i + 1}. ${r.name}${r.description ? ` — ${r.description}` : ""}`).join("\n");

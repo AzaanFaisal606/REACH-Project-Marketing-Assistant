@@ -19,8 +19,8 @@ const cands: SubredditCandidate[] = [
   { name: "pakistan", title: "Pakistan", description: "everything Pakistan", subscribers: 600_000, over18: false }
 ];
 
-const provider = { id: "claude", label: "Fake" } as Provider;
-const config = { apiKey: "key" };
+const provider = { id: "openai-compat" } as Provider;
+const config = { label: "Fake", baseUrl: "", model: "m" };
 
 describe("rerankWithAI", () => {
   it("reorders candidates by the AI's scores and attaches fitScore", async () => {

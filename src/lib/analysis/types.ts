@@ -21,7 +21,7 @@ export interface ProjectSummary {
   xFormatReason?: string;          // one-line human rationale, surfaced in the X tab UI
 }
 
-export const FACET_KEYS = ["topic", "audience", "geography", "platform"] as const;
+const FACET_KEYS = ["topic", "audience", "geography", "platform"] as const;
 
 /** All facet values flattened, de-duped, order preserved. Falls back to the
  *  flat keyword list when no facets are present. */

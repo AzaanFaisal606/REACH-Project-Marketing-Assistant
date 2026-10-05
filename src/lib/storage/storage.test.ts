@@ -10,25 +10,37 @@ beforeEach(() => {
         get: vi.fn(async (keys: string[]) =>
           Object.fromEntries(keys.map((k) => [k, data[k]]))),
         set: vi.fn(async (obj: Record<string, unknown>) => { Object.assign(data, obj); }),
-        remove: vi.fn(async (k: string) => { delete data[k]; })
+        remove: vi.fn(async (k: string | string[]) => { for (const key of [k].flat()) delete data[key]; })
       }
     }
   };
 });
 
 describe("storage", () => {
-  it("stores and reads the API key obfuscated", async () => {
-    await storage.setApiKey("sk-secret");
-    expect(await storage.getApiKey()).toBe("sk-secret");
-    const raw = (await (globalThis as any).chrome.storage.local.get(["apiKey"])).apiKey;
-    expect(raw).not.toContain("secret");
+  it("keeps a separate key per provider", async () => {                 // Review Focus 3
+    await storage.setApiKey("openai", "sk-o");
+    await storage.setApiKey("deepseek", "sk-d");
+    expect((await storage.getProviderSettings()).apiKeys).toEqual({ openai: "sk-o", deepseek: "sk-d" });
   });
-  it("returns empty string when no key set", async () => {
-    expect(await storage.getApiKey()).toBe("");
+  it("stores keys obfuscated, never plain", async () => {
+    await storage.setApiKey("groq", "gsk-secret");
+    expect(JSON.stringify(await chrome.storage.local.get(["apiKeys"]))).not.toContain("gsk-secret");
   });
-  it("stores and reads provider id", async () => {
-    await storage.setProvider("gpt");
-    expect(await storage.getProvider()).toBe("gpt");
+  it("returns empty settings when nothing is saved", async () => {
+    expect(await storage.getProviderSettings()).toEqual({ apiKeys: {}, baseUrls: {}, models: {} });
+  });
+  it("stores base URLs and models per provider; empty string clears", async () => {
+    await storage.setBaseUrl("vllm", "http://box:8000/v1");
+    await storage.setModel("vllm", "qwen");
+    await storage.setModel("lmstudio", "m");
+    await storage.setModel("lmstudio", "");
+    const s = await storage.getProviderSettings();
+    expect(s.baseUrls).toEqual({ vllm: "http://box:8000/v1" });
+    expect(s.models).toEqual({ vllm: "qwen" });
+  });
+  it("stores and reads a known provider id", async () => {
+    await storage.setProvider("openrouter");
+    expect(await storage.getProvider()).toBe("openrouter");
   });
   it("accumulates drafts without clobbering existing ones", async () => {
     await storage.setDraft("webdev", { title: "T1", body: "B1" });
@@ -66,28 +78,5 @@ describe("storage", () => {
     await storage.setRedditSession({ candidates: [], selected: null, rules: [] });
     await storage.clearRedditSession();
     expect(await storage.getRedditSession()).toBeNull();
-  });
-
-  it("accepts ollama as a valid provider id", async () => {
-    await storage.setProvider("ollama");
-    expect(await storage.getProvider()).toBe("ollama");
-  });
-
-  it("returns the default base URL when ollama base url is not set", async () => {
-    expect(await storage.getOllamaBaseUrl()).toBe("http://localhost:11434");
-  });
-
-  it("stores and reads ollama base url", async () => {
-    await storage.setOllamaBaseUrl("http://192.168.1.10:11434");
-    expect(await storage.getOllamaBaseUrl()).toBe("http://192.168.1.10:11434");
-  });
-
-  it("returns empty string when ollama model is not set", async () => {
-    expect(await storage.getOllamaModel()).toBe("");
-  });
-
-  it("stores and reads ollama model", async () => {
-    await storage.setOllamaModel("llama3.2:latest");
-    expect(await storage.getOllamaModel()).toBe("llama3.2:latest");
   });
 });

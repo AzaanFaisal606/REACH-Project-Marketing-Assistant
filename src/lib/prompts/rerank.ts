@@ -1,7 +1,7 @@
 import type { ProjectSummary } from "@/lib/analysis/types";
 import type { SubredditCandidate } from "@/lib/reddit/rank";
 
-export const RERANK_SYSTEM = `You rank subreddits by how well a project fits each community for a launch/feedback post.
+const RERANK_SYSTEM = `You rank subreddits by how well a project fits each community for a launch/feedback post.
 Score each provided subreddit 0-100 on fit, judging:
 - topical relevance to what the project actually is,
 - whether the project's AUDIENCE (including their country/region) is present there,

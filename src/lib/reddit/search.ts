@@ -29,12 +29,6 @@ interface RawSub {
 
 const SUBS = dataset as RawSub[];
 
-// Kept for API compatibility: state.ts imports this to detect Reddit throttling.
-// The offline path can't be rate-limited, but the type must still exist so the
-// `instanceof` check in findCommunities keeps compiling. It's simply never
-// thrown now.
-export class RedditRateLimitError extends Error {}
-
 const MAX_KEYWORD_QUERIES = 6;
 // Return a pool wide enough for rankSubreddits + the AI rerank to pick a good
 // top-N, but only of subs that actually matched a keyword TOKEN by word.

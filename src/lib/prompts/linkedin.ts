@@ -1,6 +1,6 @@
 import type { ProjectSummary } from "@/lib/analysis/types";
 
-export const LINKEDIN_SYSTEM = `You write high-performing LinkedIn posts that launch a developer's project.
+const LINKEDIN_SYSTEM = `You write high-performing LinkedIn posts that launch a developer's project.
 
 STRUCTURE (enforce strictly):
 1. Hook — single punchy line, creates curiosity or states a bold claim
@@ -19,7 +19,7 @@ RULES:
 - Keep the post under 3000 characters (LinkedIn's hard cap)
 - Output raw JSON: { "post": "..." } with \\n for line breaks. No prose, no code fences.`;
 
-export const FOUNDER_MODE_BLOCK = `
+const FOUNDER_MODE_BLOCK = `
 
 FOUNDER MODE: Reframe as a personal journey.
 Structure: problem you personally faced → why existing tools failed you →

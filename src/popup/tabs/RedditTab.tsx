@@ -24,7 +24,7 @@ export function RedditTab() {
               : "Find communities"}
       </button>
       {reddit.error.value && (
-        <p class={`alert-box${reddit.rateLimited.value ? " danger" : ""}`}>
+        <p class="alert-box">
           {reddit.error.value}
         </p>
       )}

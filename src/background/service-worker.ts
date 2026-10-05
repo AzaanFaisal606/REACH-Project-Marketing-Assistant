@@ -1,6 +1,7 @@
-// Filled in by the user after deploying the Worker (Task 13 setup):
-const GITHUB_CLIENT_ID = "REPLACE_WITH_CLIENT_ID";
-const WORKER_EXCHANGE_URL = "https://REPLACE_WITH_WORKER_SUBDOMAIN.workers.dev/exchange";
+// GitHub OAuth App "REACH" (callback: https://knkbfnicnkmcfpanenhaoiaflgmanphf.chromiumapp.org/)
+// and the Cloudflare Worker in worker/ that swaps the auth code for a token.
+const GITHUB_CLIENT_ID = "Ov23lia2JR5iDvobNPm3";
+const WORKER_EXCHANGE_URL = "https://reach-oauth-worker.reach-assistant.workers.dev/exchange";
 
 interface AuthMsg { type: "github-oauth"; }
 

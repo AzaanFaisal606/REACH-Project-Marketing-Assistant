@@ -2,133 +2,167 @@
 
 # REACH
 
-**Your repo, turned into a launch post — and pointed at the people who'll actually care.**
+**You built the thing. REACH helps you tell people about it.**
 
-Point REACH at a GitHub repo or drop in a README. It reads the project, figures out *who it's for and where they hang out*, and writes a Reddit post that doesn't sound like it came out of a content mill. You bring your own AI key; nothing leaves your machine except the call to your model.
+A Chrome extension that reads your GitHub repo (or README) and writes launch posts for Reddit, X and LinkedIn. For Reddit, it also tells you which subreddits to post in.
 
 </div>
 
 ---
 
-## Why this exists
+## Why I made this
 
-Shipping the thing is the easy part. Getting the first hundred people to see it is the part nobody warns you about.
+Finishing a project is weirdly the easy part. Then you have to post about it, and that's where I always got stuck.
 
-The usual advice — "post it on Reddit!" — falls apart the moment you try. Which subreddit? r/programming will eat you alive for self-promo. The niche one with 4,000 members is where your users actually are, but you've never heard of it. And once you find it, you're staring at an empty title box trying to write something that doesn't read like an ad.
+"Just post it on Reddit" sounds simple until you try. Which subreddit? r/programming will roast you for self-promo. The small niche sub where your actual users hang out? You've probably never heard of it. And once you find it, you're staring at an empty text box trying not to sound like an ad.
 
-REACH is the part between "it's done" and "people are using it." It does the two things that are genuinely hard to do well: **finding the right rooms**, and **writing something worth posting in them**.
-
-It does *not* try to be a social-media suite. No scheduling, no analytics dashboards, no "growth hacking." The whole moat is the input (your actual code) and the targeting (where to post) — the writing on top of that is the easy 20%.
+So REACH does the two annoying bits for you: finding the right places to post, and writing a first draft that sounds like a person wrote it. You still read it, tweak it and hit post yourself. It doesn't post or schedule anything, and there's no analytics dashboard.
 
 ---
 
 ## What it does
 
-> **Note:** Reddit is the only fully-built channel right now. X and LinkedIn are stubbed as "coming soon" — the post-generation engine is shared, so they're wiring, not rewrites.
+**1. Reads your project**
 
-**1 · Understand the project**
-Feed it a public GitHub repo, a private one (via GitHub OAuth), or just paste a README. REACH pulls the metadata and readme, then has your model distil it into a structured summary — value prop, target user, key features, tone, and a set of search keywords *grouped by axis* (topic, audience, geography, platform).
+Paste a GitHub link or drop in your README. REACH reads it and works out what the project does, who it's for and what words those people would search for.
 
-**2 · Find the communities**
-This is the part most "post to Reddit" tools get lazy about. REACH searches Reddit per keyword-axis and ranks the results with a heuristic that deliberately **de-weights raw subscriber count** — a 12-million-member megasub where your post drowns is worth less than a focused one where it's seen. It also reserves a slot for *geography*: if your project is "a PC-parts marketplace for Pakistan," it won't just hand you r/buildapc — it'll surface the Pakistani PC community too.
+**2. Finds subreddits (Reddit tab)**
 
-**3 · Write the post**
-Pick a community. REACH pulls that subreddit's rules, warns you if it restricts self-promotion, and generates a title + body tuned to fit — problem-first, dev-voiced, no link stuffed in the title. Edit inline, then jump straight to Reddit's submit page with everything pre-filled.
+It searches a built-in list of around 32,000 subreddits and picks the ones that fit. It cares more about relevance than size, so a 5k-member niche sub where people will actually see your post beats a 20M-member sub where it sinks in a minute. If your project is about a place ("PC parts in Pakistan"), it'll look for the local communities too.
 
-Closed the popup mid-flow? It remembers. Your summary, the communities you found, and your draft are all there when you reopen — so you can post to one subreddit today and come back for the next without re-running anything.
+Pick one and it writes a post for that sub. If it can get the sub's rules, it reads them and warns you when self-promo isn't allowed. Don't want to pick a sub? You can write a general post instead.
 
----
+**3. Writes the post**
 
-## Bring your own key (and keep it)
+- **Reddit:** a title and body, then a button that opens Reddit's submit page with everything filled in.
+- **X:** a single tweet or a thread. Pick a tone (build in public, data-driven, technical or hot take), choose a hook you like, and regenerate any tweet you don't.
+- **LinkedIn:** a normal post, or flip on Founder mode to tell it as a personal story ("here's the problem I had, here's what I built").
 
-REACH has **no backend that ever sees your data.** You plug in your own API key for one of:
-
-| Provider | Model | Status |
-| --- | --- | --- |
-| **Anthropic** | Claude | ✅ verified |
-| **Google** | Gemini | ✅ verified |
-| **OpenAI** | GPT | ⚙️ adapter built, identical pattern |
-
-Your key is stored in `chrome.storage.local` on your own machine, lightly obfuscated. To be completely honest about that: **obfuscation is not encryption.** MV3 extensions have no secure keystore, so anything stored client-side is recoverable by someone with access to your browser profile. It's good enough to keep your key out of plain sight; it is not a vault. The extension tells you this in the UI too — no surprises.
-
-The *only* server-side component is an optional, tiny Cloudflare Worker that exists for one reason: GitHub OAuth for private repos requires a client secret, and a client secret can't live in a public extension. The Worker does the token exchange and nothing else. If you only ever use public repos or pasted READMEs, you don't need it at all.
+Close the popup halfway through and nothing's lost. Your project, the subs it found and your drafts are all still there next time.
 
 ---
 
-## Run it locally
+## Bring your own AI key
 
-REACH isn't on the Chrome Web Store (yet). Building from source takes a couple of minutes.
+REACH doesn't have its own AI. You plug in yours, and pretty much anything works.
+
+**Cloud**, where you paste a key:
+
+| Provider | Get a key |
+| --- | --- |
+| Claude | [platform.claude.com](https://platform.claude.com/settings/keys) |
+| OpenAI | [platform.openai.com](https://platform.openai.com/api-keys) |
+| Gemini | [aistudio.google.com](https://aistudio.google.com/apikey). Has a free tier, handy for trying REACH out |
+| OpenRouter | [openrouter.ai](https://openrouter.ai/settings/keys). One key gets you hundreds of models |
+| DeepSeek, Kimi, Groq, xAI, Mistral, Ollama Cloud | each has a "Get a key" link in settings |
+
+**Local**, running on your own computer, free and private: **Ollama**, **LM Studio**, **llama.cpp** and **vLLM**. Pick one in settings, check the address (the usual one is filled in for you), and pick a model.
+
+**Anything else** that speaks the OpenAI chat API works through **Custom**: paste its address, plus a key if it needs one.
+
+The model dropdown fills itself from whatever the provider says you have access to, and you can search it. Leave it on "Default" if you don't care.
+
+**Chrome will ask for permission** the first time you use a provider ("Allow REACH to reach api.deepseek.com?"). That's on purpose: REACH asks for access to each provider when you pick it, instead of asking for every website at install.
+
+**About your key:** it's saved in your browser on your machine, and it only ever gets sent to the provider you picked. To be honest, it's only scrambled, not properly encrypted, because Chrome extensions don't have a real safe place to keep secrets. Anyone with access to your browser profile could dig it out. So that's fine for a normal personal setup, just don't treat it like a password vault.
+
+---
+
+## Try it
+
+It's not on the Chrome Web Store yet, so for now you load it yourself. It takes about two minutes.
+
+You'll need [Node.js](https://nodejs.org) (version 20 or newer).
 
 ```bash
-git clone <this-repo>
-cd REACH
+git clone https://github.com/AzaanFaisal606/REACH-Project-Marketing-Assistant.git
+cd REACH-Project-Marketing-Assistant
 npm install
-npm run build      # outputs to dist/
+npm run build
 ```
 
-Then load it into Chrome:
+That creates a `dist/` folder. Now in Chrome:
 
 1. Go to `chrome://extensions`
-2. Turn on **Developer mode** (top-right)
-3. Click **Load unpacked** and select the `dist/` folder
-4. Pin REACH, open it, hit the ⚙️ and paste your API key
+2. Turn on **Developer mode** (top right)
+3. Click **Load unpacked** and pick the `dist/` folder
+4. Pin REACH to your toolbar and click it
+5. It'll walk you through adding your key. Then paste a repo link and go.
 
-For live development with hot-reload, use `npm run dev` instead of `build`.
+Making changes? `npm run dev` rebuilds as you edit, and `npm test` runs the tests.
 
-### Optional — private GitHub repos
+### Running models locally?
 
-Only needed if you want to analyze private repositories. The flow lives in [`worker/`](worker/) — register a GitHub OAuth app, deploy the Worker, and drop the client ID + Worker URL into the two placeholder constants in `src/background/service-worker.ts`. Step-by-step is in [`worker/README.md`](worker/README.md).
+LM Studio, llama.cpp and vLLM work as-is. Just start their server. Ollama blocks browser extensions by default, so start it like this:
+
+```bash
+# macOS / Linux
+OLLAMA_ORIGINS="chrome-extension://*" ollama serve
+
+# Windows (PowerShell)
+$env:OLLAMA_ORIGINS="chrome-extension://*"; ollama serve
+```
+
+The settings screen has these too, with copy buttons.
+
+### Private repos
+
+Public repos and pasted READMEs work straight away. Private repos need a GitHub login, which takes a little server setup on your side for now. The steps are in [`worker/README.md`](worker/README.md). This will be much simpler in the store version.
 
 ---
 
-## How it's built
+## How it's put together
 
-A deliberately small stack — it's a popup, not a platform.
+It's a small project on purpose:
 
-- **Preact + TypeScript** — the entire UI and flow state live in the popup; signals for reactivity.
-- **Vite + `@crxjs/vite-plugin`** — MV3 bundling that actually works on Vite 8.
-- **`chrome.storage.local`** — all persistence. No database, no accounts.
-- **A provider adapter layer** — each AI provider is a small module behind one interface, so adding another (Grok, a local model, OpenRouter) is one file, not a refactor.
-- **Reddit's public JSON endpoints** — search and rules, called politely (sequential, rate-limit aware) straight from the browser.
-- **One Cloudflare Worker** — GitHub OAuth token exchange, and that's it.
-- **Vitest** — the logic (analysis parsing, ranking, query planning, storage) is covered by ~90 tests.
+- **Preact + TypeScript** for the popup
+- **Vite** with `@crxjs/vite-plugin` to build the Chrome extension
+- **`chrome.storage`** for saving everything. There's no database and no accounts.
+- **Two AI adapters** (Claude's own API, and one for everything OpenAI-compatible) plus a list of provider presets, so adding a provider is one entry in a list
+- **An offline subreddit list** (`src/lib/reddit/data/`), because Reddit blocks most logged-out requests now. It's rebuilt with `npm run build:subreddits`.
+- **A tiny Cloudflare Worker**, only for the private-repo GitHub login
+- **Vitest** for tests
 
 ```
 src/
-├── popup/          UI, components, flow state
+├── popup/          the UI: tabs, settings, flow state
 ├── lib/
-│   ├── analysis/   repo/README → structured summary
-│   ├── providers/  Claude · Gemini · GPT adapters
-│   ├── reddit/     search, ranking, rules, submit-URL
-│   ├── github/     repo fetch + URL parsing
-│   └── storage/    chrome.storage wrapper + key obfuscation
-└── background/     service worker (OAuth handoff)
-worker/             Cloudflare Worker for GitHub OAuth
+│   ├── analysis/   reads your project and pulls out the summary
+│   ├── providers/  Claude adapter, OpenAI-compatible adapter, provider presets
+│   ├── reddit/     subreddit search, ranking, rules, submit links
+│   ├── x/          tweets, threads, hashtags
+│   ├── linkedin/   LinkedIn posts
+│   ├── prompts/    the prompts behind each post type
+│   ├── github/     fetching repos
+│   └── storage/    saving settings and drafts
+└── background/     handles the GitHub login
+worker/             the Cloudflare Worker for GitHub login
+scripts/            builds the offline subreddit list
 ```
 
 ---
 
-## Roadmap
+## What's next
 
-- [x] Reddit: discover → rank → generate → post
-- [x] BYOK with Claude, Gemini, GPT
-- [x] Public + private (OAuth) GitHub repos
-- [x] Geography-aware community ranking
-- [ ] AI-assisted community re-ranking (heuristic recall → model precision)
-- [ ] X (Twitter) channel
-- [ ] LinkedIn channel
-- [ ] Sampling a subreddit's top posts to match its tone
+- [x] Reddit: find subs, write the post, open the submit page
+- [x] X and LinkedIn posts
+- [x] Claude, OpenAI, Gemini, OpenRouter, DeepSeek, Kimi and more, plus local models (Ollama, LM Studio, llama.cpp, vLLM)
+- [x] Works for people who aren't logged in to Reddit (offline subreddit list)
+- [ ] Subreddit rules for every sub, even without a Reddit login
+- [ ] Chrome Web Store release
+- [ ] Easier private-repo login
+- [ ] Learn a subreddit's style from its top posts
 
 ---
 
-## A note on responsible posting
+## Please post responsibly
 
-REACH makes it easy to post in a lot of places. That's a double-edged sword. It surfaces a subreddit's rules and flags self-promo restrictions *before* you post for a reason — please read them. The goal is to help you reach the communities that genuinely want to hear about what you built, not to spray links. Communities notice the difference, and so do the people in them.
+REACH makes it easy to post in lots of places. Please don't use it to spam. Read each sub's rules (REACH shows them for a reason), post where people will actually care, and reply to the comments. People can tell when someone's just dropping links, and mods will ban you for it.
 
 ---
 
 <div align="center">
 
-**MIT licensed.** Built by [Azaan Faisal](https://github.com/AzaanFaisal606).
+MIT licensed. Made by [Azaan Faisal](https://github.com/AzaanFaisal606).
 
 </div>

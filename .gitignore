@@ -9,9 +9,10 @@ dist/
 .claude/
 .superpowers/
 .worktrees/
+CLAUDE.md
 
 # Internal planning/spec docs — not for the public repo
-docs/superpowers/
+docs/
 REACH_Extension_Spec.md
 
 # Cloudflare wrangler local state

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "preact/hooks";
-import { hydrate, appState, providerReady } from "./state";
+import { hydrate, appState, providerReady, currentPreset } from "./state";
 import type { TabId } from "./state";
-import { PROVIDERS } from "@/lib/providers";
 import { Settings } from "./components/Settings";
+import { Welcome } from "./components/Welcome";
 import { InputPanel } from "./components/InputPanel";
 import { RedditTab } from "./tabs/RedditTab";
 import { XTab } from "./tabs/XTab";
@@ -17,7 +17,10 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function App() {
   const [showSettings, setShowSettings] = useState(false);
-  useEffect(() => { hydrate(); }, []);
+  // Wait for stored settings before deciding to show the first-run card, or it
+  // flashes on every open.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { hydrate().then(() => setHydrated(true)); }, []);
 
   return (
     <div class="app">
@@ -34,7 +37,7 @@ export function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           {providerReady() && (
-            <span class="provider-chip">{PROVIDERS[appState.providerId.value].label} ✓</span>
+            <span class="provider-chip">{currentPreset().label} ✓</span>
           )}
           <button class="gear" onClick={() => setShowSettings((s) => !s)} aria-label="Settings">⚙</button>
         </div>
@@ -44,6 +47,7 @@ export function App() {
         <Settings />
       ) : (
         <main class="body">
+          {hydrated && !providerReady() && <Welcome onSetup={() => setShowSettings(true)} />}
           <InputPanel />
           <nav class="tab-bar">
             {TABS.map((t) => (
