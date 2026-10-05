@@ -1,95 +1,139 @@
 import type { SubredditCandidate } from "./rank";
+import dataset from "./data/subreddits.json";
 
-interface RedditChild {
-  data: {
-    display_name: string;
-    title: string;
-    public_description: string;
-    subscribers: number | null;
-    over18: boolean;
+// OFFLINE COMMUNITY SEARCH.
+//
+// Reddit disabled unauthenticated .json endpoints (403 as of May 2026), so the
+// old live keyword search (reddit.com/subreddits/search.json) no longer works
+// on machines without a trusted, logged-in reddit.com session. We now search a
+// bundled snapshot instead (src/lib/reddit/data/subreddits.json, built by
+// scripts/build-subreddit-dataset.mjs). Same signature as before —
+// searchSubreddits(keywords) -> candidates — so ranking and callers are
+// unchanged; only the candidate SOURCE moved from network to local.
+//
+// The old code delegated relevance to Reddit's server-side search. We can't; a
+// naive `description.includes(token)` substring scan is far too loose — the
+// token "style" matches r/lifestyle, "learning" matches half of Reddit — and
+// because the dataset is sorted by size, the first N substring hits are just the
+// biggest generic subs. So we do proper WORD-BOUNDARY matching and RELEVANCE
+// SCORING here, weighting a hit in the sub's name/title far above its
+// description, and return the best-scoring subs. rankSubreddits() then applies
+// its own scoring on this already-relevant pool.
+
+interface RawSub {
+  name: string;
+  title: string;
+  description: string;
+  subscribers: number;
+}
+
+const SUBS = dataset as RawSub[];
+
+// Kept for API compatibility: state.ts imports this to detect Reddit throttling.
+// The offline path can't be rate-limited, but the type must still exist so the
+// `instanceof` check in findCommunities keeps compiling. It's simply never
+// thrown now.
+export class RedditRateLimitError extends Error {}
+
+const MAX_KEYWORD_QUERIES = 6;
+// Return a pool wide enough for rankSubreddits + the AI rerank to pick a good
+// top-N, but only of subs that actually matched a keyword TOKEN by word.
+const POOL_LIMIT = 60;
+
+// Same tokenizer as rank.ts: split on non-alphanumerics, drop short/glue tokens.
+const MIN_TOKEN_LEN = 3;
+const STOPWORDS = new Set([
+  "the", "and", "for", "with", "your", "you", "are", "our",
+  "this", "that", "from", "into", "via", "using", "based",
+  // Generic tech/marketing words that match thousands of unrelated subs and
+  // carry no community-targeting signal on their own.
+  "app", "web", "online", "free", "new", "best", "tool", "tools"
+]);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= MIN_TOKEN_LEN && !STOPWORDS.has(t));
+}
+
+// Whole-word (token) presence, not substring: "style" must appear as its own
+// word, so it matches "neural style transfer" but NOT "lifestyle"/"hairstyle".
+// Text is split into a Set of word tokens once per field for O(1) lookups.
+function wordSet(text: string): Set<string> {
+  return new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+}
+
+// Precompute each sub's tokenized name/title/description ONCE. The dataset is
+// ~30k rows; doing this per-search-per-keyword would be wasteful.
+interface IndexedSub {
+  sub: RawSub;
+  nameWords: Set<string>;
+  titleWords: Set<string>;
+  descWords: Set<string>;
+}
+
+const INDEX: IndexedSub[] = SUBS.map((sub) => ({
+  sub,
+  nameWords: wordSet(sub.name),
+  titleWords: wordSet(sub.title),
+  descWords: wordSet(sub.description)
+}));
+
+// Relevance weights: a keyword landing in the sub's NAME is a much stronger
+// signal than in its blurb. This is what keeps r/MachineLearning above
+// r/malefashionadvice for an ML project — the token "learning"/"machine" hits
+// the name, not just some word buried in a fashion sub's description.
+const W_NAME = 6;
+const W_TITLE = 3;
+const W_DESC = 1;
+
+function relevance(item: IndexedSub, tokens: string[]): number {
+  let score = 0;
+  for (const t of tokens) {
+    if (item.nameWords.has(t)) score += W_NAME;
+    else if (item.titleWords.has(t)) score += W_TITLE;
+    else if (item.descWords.has(t)) score += W_DESC;
+  }
+  return score;
+}
+
+function toCandidate(s: RawSub): SubredditCandidate {
+  // The dataset is pre-filtered to public, non-NSFW, >=1000-sub communities, so
+  // over18 is always false here. rankSubreddits still re-applies its own filters,
+  // which is a harmless no-op on this set.
+  return {
+    name: s.name,
+    title: s.title,
+    description: s.description,
+    subscribers: s.subscribers,
+    over18: false
   };
 }
 
-// Search the strongest keywords individually and merge — one joined query is too
-// narrow (Reddit treats it as a single relevance match). But fire them
-// SEQUENTIALLY with a small gap, not in parallel: a burst of requests to
-// reddit.com gets rate-limited (429), which silently shrinks the result set.
-const MAX_KEYWORD_QUERIES = 6;
-const PER_QUERY_LIMIT = 25;
-// Once we have this many unique candidates, stop querying further keywords —
-// rank only surfaces the top 5, so a deeper pool just risks the rate limit.
-const ENOUGH_CANDIDATES = 15;
-const GAP_MS = 350;
-
-class RedditBlockedError extends Error {}
-export class RedditRateLimitError extends Error {}
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-async function searchOne(keyword: string): Promise<SubredditCandidate[]> {
-  const q = encodeURIComponent(keyword.trim());
-  const url = `https://www.reddit.com/subreddits/search.json?q=${q}&limit=${PER_QUERY_LIMIT}&raw_json=1`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (res.status === 429) throw new RedditRateLimitError("Reddit rate limit hit (429).");
-  if (res.status === 403) throw new RedditBlockedError("Reddit blocked the request (403).");
-  if (!res.ok) throw new RedditBlockedError(`Reddit search failed: ${res.status}`);
-
-  // Reddit sometimes answers with an HTML interstitial (200, text/html) instead
-  // of JSON. Parsing that as JSON throws a cryptic "Unexpected token <"; detect
-  // it and surface a Reddit-specific message instead.
-  const text = await res.text();
-  let json: { data?: { children?: RedditChild[] } };
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new RedditBlockedError("Reddit returned a non-JSON response (it may be rate-limiting or blocking requests).");
-  }
-
-  return (json.data?.children ?? []).map((c) => ({
-    name: c.data.display_name,
-    title: c.data.title ?? "",
-    description: c.data.public_description ?? "",
-    subscribers: c.data.subscribers ?? 0,
-    over18: c.data.over18 ?? false
-  }));
-}
-
+// Synchronous under the hood, but kept async to preserve the call site
+// (`await searchSubreddits(...)`) and signature exactly.
 export async function searchSubreddits(keywords: string[]): Promise<SubredditCandidate[]> {
   const queries = keywords.map((k) => k.trim()).filter(Boolean).slice(0, MAX_KEYWORD_QUERIES);
   if (queries.length === 0) return [];
 
-  const byName = new Map<string, SubredditCandidate>();
-  let rateLimited: Error | null = null;
-  let blocked = 0;
-  let succeeded = 0;
+  // Union all query tokens; score every sub once against the whole set. This
+  // beats per-keyword quotas (which filled up with big generic subs before ever
+  // reaching a relevant mid-size one).
+  const tokens = [...new Set(queries.flatMap(tokenize))];
+  if (tokens.length === 0) return [];
 
-  for (let i = 0; i < queries.length; i++) {
-    if (i > 0) await sleep(GAP_MS); // be polite — avoid tripping Reddit's rate limit
-    try {
-      const found = await searchOne(queries[i]);
-      succeeded++;
-      for (const c of found) if (!byName.has(c.name)) byName.set(c.name, c);
-      if (byName.size >= ENOUGH_CANDIDATES) break; // enough to rank a good top 5
-    } catch (e) {
-      // A single keyword failing must never discard candidates already gathered
-      // from earlier keywords. Note the failure and move on; only an all-empty
-      // result surfaces an error below. Rate-limit is the exception — once Reddit
-      // starts 429ing, further requests will too, so stop early.
-      if (e instanceof RedditRateLimitError) { rateLimited = e; break; }
-      blocked++;
-    }
+  const scored: { item: IndexedSub; score: number }[] = [];
+  for (const item of INDEX) {
+    const score = relevance(item, tokens);
+    if (score > 0) scored.push({ item, score });
   }
 
-  // Surface a failure only when nothing came back. A single keyword failing
-  // shouldn't sink the whole search — the others can still produce candidates.
-  if (byName.size === 0) {
-    if (rateLimited) throw rateLimited;
-    // 403/HTML interstitials are Reddit throttling unauthenticated requests —
-    // same remedy as a 429, so report it as a rate-limit to the user.
-    if (blocked > 0) {
-      throw new RedditRateLimitError("Reddit blocked the request — it may be rate-limiting.");
-    }
-  }
+  // Best relevance first; subscribers as a gentle tiebreaker so among equally
+  // on-topic subs the more active one wins.
+  scored.sort((a, b) =>
+    b.score - a.score || b.item.sub.subscribers - a.item.sub.subscribers
+  );
 
-  return [...byName.values()];
+  return scored.slice(0, POOL_LIMIT).map((x) => toCandidate(x.item.sub));
 }

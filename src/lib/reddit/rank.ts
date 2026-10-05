@@ -28,10 +28,12 @@ function isNsfw(c: SubredditCandidate): boolean {
   const hay = `${c.name} ${c.title} ${c.description}`.toLowerCase();
   return NSFW_WORDS.some((w) => hay.includes(w));
 }
-// Size matters far less than relevance — a huge generic sub buries your post,
-// a smaller on-topic one actually sees it. Keep size as a gentle tiebreaker
-// only (was 1.0; that let 10M-member subs dominate single-axis niche ones).
-const W_SIZE = 0.4;
+// Ranking is PURELY by keyword relevance — subscriber size does not factor into
+// the score at all. A huge generic sub buries your post; a smaller on-topic one
+// actually sees it. Size is used ONLY as a deterministic tiebreaker between subs
+// with identical relevance (see the sort below), never to lift a bigger sub over
+// a more relevant smaller one.
+const W_SIZE = 0;
 const TOP_N = 5;
 
 // Word tokens shorter than this, plus these pure glue words, don't count toward
@@ -88,7 +90,9 @@ export function rankSubreddits(
       return { c, overlap, score };
     })
     .filter((x) => x.overlap > 0) // must match at least one keyword
-    .sort((a, b) => b.score - a.score);
+    // Pure relevance: higher score first. Subscribers break ties only, so ordering
+    // is deterministic without ever letting size beat a more relevant sub.
+    .sort((a, b) => b.score - a.score || b.c.subscribers - a.c.subscribers);
 
   const top = scored.slice(0, limit).map((x) => x.c);
 

@@ -18,3 +18,7 @@ REACH_Extension_Spec.md
 # Cloudflare wrangler local state
 worker/.wrangler/
 .dev.vars
+
+# Raw subreddit dataset (source artifact for scripts/build-subreddit-dataset.mjs).
+# The pruned src/lib/reddit/data/subreddits.json IS committed; this 13MB raw zip is not.
+subreddits.csv.zip

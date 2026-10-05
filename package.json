@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:subreddits": "node scripts/build-subreddit-dataset.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
