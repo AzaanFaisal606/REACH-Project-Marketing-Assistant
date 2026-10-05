@@ -56,12 +56,29 @@ async function setRaw(key: string, value: unknown): Promise<void> {
   await chrome.storage.local.set({ [key]: value });
 }
 
+// Map updates are read-modify-write, so two at once (e.g. a model cleared for
+// one provider while another is saved) would drop one. Run them in order.
+let mapWrites: Promise<void> = Promise.resolve();
+
 /** Set one entry of a per-provider map; an empty value removes it. */
-async function setEntry(mapKey: string, id: string, value: string): Promise<void> {
-  const map = (await getRaw<Record<string, string>>(mapKey)) ?? {};
-  if (value) map[id] = value;
-  else delete map[id];
-  await setRaw(mapKey, map);
+function setEntry(mapKey: string, id: string, value: string): Promise<void> {
+  const write = mapWrites.then(async () => {
+    const map = (await getRaw<Record<string, string>>(mapKey)) ?? {};
+    if (value) map[id] = value;
+    else delete map[id];
+    await setRaw(mapKey, map);
+  });
+  mapWrites = write.catch(() => {});
+  return write;
+}
+
+/** A stored key that can't be decoded is dropped rather than breaking every load. */
+function readKey(stored: string): string {
+  try {
+    return deobfuscate(stored);
+  } catch {
+    return "";
+  }
 }
 
 export const storage = {
@@ -79,7 +96,9 @@ export const storage = {
       getRaw<Record<string, string>>(KEYS.baseUrls),
       getRaw<Record<string, string>>(KEYS.models)
     ]);
-    const apiKeys = Object.fromEntries(Object.entries(keys ?? {}).map(([id, k]) => [id, deobfuscate(k)]));
+    const apiKeys = Object.fromEntries(
+      Object.entries(keys ?? {}).map(([id, k]) => [id, readKey(k)]).filter(([, k]) => k)
+    );
     return { apiKeys, baseUrls: baseUrls ?? {}, models: models ?? {} };
   },
   async setApiKey(id: string, key: string): Promise<void> {

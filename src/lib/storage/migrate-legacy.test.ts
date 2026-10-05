@@ -30,12 +30,22 @@ describe("migrateLegacySettings", () => {
     expect(s.models).toEqual({ ollama: "llama3", openai: "gpt-5.5" });
     expect(Object.keys(data).sort()).toEqual(["apiKeys", "baseUrls", "models", "provider"]);
   });
+  it("keeps the old key when the old provider was Ollama, matching it by prefix", async () => {
+    data = { provider: "ollama", apiKey: obfuscate("sk-ant-api03-x") };
+    await migrateLegacySettings();
+    expect((await storage.getProviderSettings()).apiKeys).toEqual({ claude: "sk-ant-api03-x" });
+  });
+  it("gives a key to the provider its prefix belongs to", async () => {
+    data = { provider: "claude", apiKey: obfuscate("AIzaSyX") };
+    await migrateLegacySettings();
+    expect((await storage.getProviderSettings()).apiKeys).toEqual({ gemini: "AIzaSyX" });
+  });
   it("gives an old key with no saved provider to Claude", async () => {
     data = { apiKey: obfuscate("sk-ant") };
     await migrateLegacySettings();
     expect((await storage.getProviderSettings()).apiKeys).toEqual({ claude: "sk-ant" });
   });
-  it("leaves an Ollama key out (Ollama takes none) and keeps an address that already ends in /v1", async () => {
+  it("drops an unrecognised key when the old provider was Ollama, and keeps an address that already ends in /v1", async () => {
     data = { provider: "ollama", apiKey: obfuscate("unused"), ollamaBaseUrl: "http://box:11434/v1/" };
     await migrateLegacySettings();
     const s = await storage.getProviderSettings();

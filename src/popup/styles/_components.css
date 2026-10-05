@@ -91,6 +91,7 @@
   border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface-2);
 }
 .access-row p { margin: 0; font-size: var(--fs-12); color: var(--text); }
+.access-row p.hint { color: var(--text-dim); }
 
 /* subreddit cards (D2 — number badge) */
 .reddit-tab { display: flex; flex-direction: column; gap: 12px; }

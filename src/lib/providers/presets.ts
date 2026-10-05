@@ -40,7 +40,7 @@ export const PRESETS: ProviderPreset[] = [
   {
     id: "gemini", group: "cloud", label: "Gemini", adapter: "openai-compat",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", key: "required",
-    keyUrl: "https://aistudio.google.com/apikey", defaultModel: "gemini-2.5-flash",
+    keyUrl: "https://aistudio.google.com/apikey", defaultModel: "gemini-3.5-flash",
     setupHint: "Has a free tier, handy for trying REACH out.",
     modelFilter: isGeminiTextModel
   },

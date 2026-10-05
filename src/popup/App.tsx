@@ -36,7 +36,7 @@ export function App() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {providerReady() && (
+          {providerReady() && appState.providerAccess.value && (
             <span class="provider-chip">{currentPreset().label} ✓</span>
           )}
           <button class="gear" onClick={() => setShowSettings((s) => !s)} aria-label="Settings">⚙</button>

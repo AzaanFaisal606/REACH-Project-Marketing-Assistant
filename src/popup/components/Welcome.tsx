@@ -23,7 +23,7 @@ export function Welcome({ onSetup }: { onSetup: () => void }) {
           of models). Or run a model on your own computer with <KeyLink id="ollama" />{" "}
           or <KeyLink id="lmstudio" />.
         </li>
-        <li>Open settings, pick the provider, paste the key, and click Allow when Chrome asks.</li>
+        <li>Open settings, pick the provider, paste the key, then click Allow access and confirm in Chrome.</li>
         <li>Come back here and drop in your repo or README.</li>
       </ol>
       <p class="hint">Your key stays on this device and only goes to the provider you pick.</p>

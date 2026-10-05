@@ -9,6 +9,17 @@ import { deobfuscate } from "./obfuscate";
 
 const LEGACY = ["apiKey", "ollamaBaseUrl", "ollamaModel", "cloudModels"] as const;
 const RENAMED: Record<string, string> = { gpt: "openai" };
+// The old build had one key field shared by Claude, GPT and Gemini, so the key
+// may not belong to whichever provider was selected last (e.g. Ollama).
+const KEY_PREFIXES: [RegExp, string][] = [[/^sk-ant/, "claude"], [/^AIza/, "gemini"], [/^sk-/, "openai"]];
+
+/** Where the old key goes, or undefined when there's no telling (unknown key, local provider). */
+function keyOwner(key: string, provider: string): string | undefined {
+  const byPrefix = KEY_PREFIXES.find(([re]) => re.test(key))?.[1];
+  if (byPrefix) return byPrefix;
+  if (!provider) return "claude"; // the old build's default
+  return getPreset(provider)?.group === "cloud" ? provider : undefined;
+}
 
 export async function migrateLegacySettings(): Promise<void> {
   const old = await chrome.storage.local.get([...LEGACY, "provider"]);
@@ -18,10 +29,12 @@ export async function migrateLegacySettings(): Promise<void> {
   const provider = RENAMED[rawProvider] ?? rawProvider;
   if (rawProvider !== provider) await storage.setProvider(provider);
 
-  // The old key belonged to whichever cloud provider was selected.
-  const keyOwner = getPreset(provider) ? provider : "claude";
-  if (typeof old.apiKey === "string" && old.apiKey && getPreset(keyOwner)?.key !== "none") {
-    await storage.setApiKey(keyOwner, deobfuscate(old.apiKey));
+  if (typeof old.apiKey === "string" && old.apiKey) {
+    // An undecodable key is skipped; throwing here would block every popup open.
+    let key = "";
+    try { key = deobfuscate(old.apiKey); } catch { /* unreadable, drop it */ }
+    const owner = key && keyOwner(key, provider);
+    if (owner) await storage.setApiKey(owner, key);
   }
 
   if (typeof old.ollamaBaseUrl === "string" && old.ollamaBaseUrl) {

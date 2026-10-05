@@ -62,7 +62,7 @@ REACH doesn't have its own AI. You plug in yours, and pretty much anything works
 
 The model dropdown fills itself from whatever the provider says you have access to, and you can search it. Leave it on "Default" if you don't care.
 
-**Chrome will ask for permission** the first time you use a provider ("Allow REACH to reach api.deepseek.com?"). That's on purpose: REACH asks for access to each provider when you pick it, instead of asking for every website at install.
+**You'll grant access once per provider.** After you pick one, settings shows an **Allow access** button; click it and confirm Chrome's prompt. That's on purpose: REACH asks for access to each provider when you pick it, instead of asking for every website at install.
 
 **About your key:** it's saved in your browser on your machine, and it only ever gets sent to the provider you picked. To be honest, it's only scrambled, not properly encrypted, because Chrome extensions don't have a real safe place to keep secrets. Anyone with access to your browser profile could dig it out. So that's fine for a normal personal setup, just don't treat it like a password vault.
 

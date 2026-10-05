@@ -4,8 +4,12 @@ import { resolveConnection, isReady, type ProviderSettings } from "./connection"
 const empty: ProviderSettings = { apiKeys: {}, baseUrls: {}, models: {} };
 
 describe("resolveConnection", () => {
-  it("uses a saved base URL, trimming trailing slashes", () => {                // Review Focus 2
+  it("uses a saved base URL, trimming trailing slashes", () => {
     const { config } = resolveConnection("vllm", { ...empty, baseUrls: { vllm: "http://box:8000/v1/" }, models: { vllm: "m" } });
+    expect(config.baseUrl).toBe("http://box:8000/v1");
+  });
+  it("accepts a pasted full endpoint by dropping /chat/completions", () => {
+    const { config } = resolveConnection("custom", { ...empty, baseUrls: { custom: " http://box:8000/v1/chat/completions/ " } });
     expect(config.baseUrl).toBe("http://box:8000/v1");
   });
   it("falls back to the preset's base URL and default model", () => {

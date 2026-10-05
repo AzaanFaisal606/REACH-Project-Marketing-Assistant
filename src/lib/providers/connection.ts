@@ -20,7 +20,8 @@ export interface Connection {
 export function resolveConnection(presetId: string, s: ProviderSettings): Connection {
   const preset = getPreset(presetId);
   if (!preset) throw new Error(`Unknown provider "${presetId}".`);
-  const baseUrl = (s.baseUrls[presetId] || preset.baseUrl).trim().replace(/\/+$/, "");
+  // People often paste the full endpoint; the adapter adds /chat/completions itself.
+  const baseUrl = (s.baseUrls[presetId] || preset.baseUrl).trim().replace(/\/+$/, "").replace(/\/chat\/completions$/, "");
   const apiKey = preset.key === "none" ? undefined : s.apiKeys[presetId] || undefined;
   return {
     adapter: ADAPTERS[preset.adapter],

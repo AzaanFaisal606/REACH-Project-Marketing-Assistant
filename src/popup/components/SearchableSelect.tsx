@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useState, useEffect, useRef, useId } from "preact/hooks";
 import { filterOptions, type SelectOption } from "./select-filter";
 
 // A dropdown with a search box: closed it looks like a select; open it shows a
@@ -19,6 +19,7 @@ export function SearchableSelect(props: {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
+  const labelId = useId();
 
   // Close when clicking anywhere outside.
   useEffect(() => {
@@ -64,9 +65,10 @@ export function SearchableSelect(props: {
 
   return (
     <div class="ss" ref={rootRef}>
-      <label>{label}</label>
+      <label id={labelId}>{label}</label>
       <button
         type="button"
+        aria-labelledby={labelId}
         class={`ss-trigger${open ? " open" : ""}${selected || value ? "" : " placeholder"}`}
         disabled={disabled || !options || options.length === 0}
         aria-haspopup="listbox"
@@ -88,7 +90,7 @@ export function SearchableSelect(props: {
             onInput={(e) => { setQuery((e.target as HTMLInputElement).value); setActive(0); }}
             onKeyDown={onKeyDown}
           />
-          <ul class="ss-list" role="listbox" ref={listRef}>
+          <ul class="ss-list" role="listbox" aria-labelledby={labelId} ref={listRef}>
             {shown.length === 0 && <li class="ss-empty">Nothing matches "{query}".</li>}
             {shown.map((o, i) => (
               <li role="option" aria-selected={o.id === value}>

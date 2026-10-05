@@ -28,6 +28,9 @@ describe("openai-compatible adapter: responses", () => {
   it("reads string content and strips <think> blocks", () => {
     expect(openaiCompat.parseResponse({ choices: [{ message: { content: "<think>hmm</think>\nHello" } }] })).toBe("Hello");
   });
+  it("drops reasoning that only has a closing </think> tag", () => {
+    expect(openaiCompat.parseResponse({ choices: [{ message: { content: "step one…\n</think>\n\nHello" } }] })).toBe("Hello");
+  });
   it("reads content given as an array of text parts", () => {
     expect(openaiCompat.parseResponse({ choices: [{ message: { content: [{ type: "text", text: "A" }, { type: "text", text: "B" }] } }] })).toBe("AB");
   });
@@ -60,11 +63,11 @@ describe("openai-compatible adapter: models", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ models: [{ name: "qwen3:8b" }] }))));
     expect(await openaiCompat.listModels(c)).toEqual([{ id: "qwen3:8b", label: "qwen3:8b" }]);
   });
-  it("explains a rejected key", async () => {                                        // Review Focus 4
+  it("explains a rejected key", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "Invalid API key" } }), { status: 401 })));
     await expect(openaiCompat.listModels(c)).rejects.toThrow("DeepSeek error 401: Invalid API key");
   });
-  it("turns a network failure into a readable error", async () => {                  // Review Focus 1
+  it("turns a network failure into a readable error", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
     const local = { ...c, baseUrl: "http://localhost:1234/v1" };
     await expect(openaiCompat.listModels(local)).rejects.toThrow("Can't reach http://localhost:1234/v1. Is the server running?");

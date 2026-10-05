@@ -17,10 +17,20 @@ beforeEach(() => {
 });
 
 describe("storage", () => {
-  it("keeps a separate key per provider", async () => {                 // Review Focus 3
+  it("keeps a separate key per provider", async () => {
     await storage.setApiKey("openai", "sk-o");
     await storage.setApiKey("deepseek", "sk-d");
     expect((await storage.getProviderSettings()).apiKeys).toEqual({ openai: "sk-o", deepseek: "sk-d" });
+  });
+  it("keeps both entries when two providers save at the same time", async () => {
+    await Promise.all([storage.setModel("openai", "a"), storage.setModel("groq", "b")]);
+    expect((await storage.getProviderSettings()).models).toEqual({ openai: "a", groq: "b" });
+  });
+  it("drops an unreadable stored key instead of failing to load settings", async () => {
+    await storage.setApiKey("openai", "sk-o");
+    const { apiKeys } = await chrome.storage.local.get(["apiKeys"]) as { apiKeys: Record<string, string> };
+    await chrome.storage.local.set({ apiKeys: { ...apiKeys, groq: "%%not-base64%%" } });
+    expect((await storage.getProviderSettings()).apiKeys).toEqual({ openai: "sk-o" });
   });
   it("stores keys obfuscated, never plain", async () => {
     await storage.setApiKey("groq", "gsk-secret");

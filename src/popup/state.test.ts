@@ -79,17 +79,20 @@ describe("save actions", () => {
   });
 });
 
-describe("ensureProviderAccess", () => {
-  it("passes when Chrome has granted the provider's host", async () => {
-    const { appState, ensureProviderAccess } = await import("./state");
-    appState.providerId.value = "groq";
-    expect(await ensureProviderAccess()).toBe(true);
-  });
-  it("blocks with a clear message when access is missing", async () => {        // Review Focus 5
+describe("provider access", () => {
+  it("hydrate records whether the provider's host is granted", async () => {
     granted = false;
-    const { appState, ensureProviderAccess } = await import("./state");
+    const { hydrate, appState } = await import("./state");
+    await hydrate();
+    expect(appState.providerAccess.value).toBe(false);
+  });
+  it("blocks a model call with a clear message when access is missing", async () => {
+    granted = false;
+    const { appState, runAnalysis } = await import("./state");
     appState.providerId.value = "groq";
-    expect(await ensureProviderAccess()).toBe(false);
+    appState.providerSettings.value = { apiKeys: { groq: "k" }, baseUrls: {}, models: { groq: "m" } };
+    await runAnalysis("readme");
     expect(appState.status.value).toBe("Allow REACH to reach api.groq.com in Settings.");
+    expect(appState.providerAccess.value).toBe(false);
   });
 });

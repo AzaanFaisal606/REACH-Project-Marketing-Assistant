@@ -7,13 +7,12 @@ import {
   saveModel,
   providerConfig,
   currentAdapter,
-  currentPreset,
-  providerReady
+  currentPreset
 } from "../state";
 import { PRESETS, type PresetGroup } from "@/lib/providers/presets";
-import { requestAccess, hostOf } from "@/lib/providers/permissions";
+import { requestAccess, hostOf, isValidAddress } from "@/lib/providers/permissions";
+import { fetchModelsJson } from "@/lib/providers/types";
 import { loadModelList } from "../model-list";
-import { describeProviderError } from "@/lib/providers/errors";
 import { SearchableSelect } from "./SearchableSelect";
 import type { SelectOption } from "./select-filter";
 
@@ -26,16 +25,20 @@ const GROUPS: { id: PresetGroup; label: string }[] = [
 export function Settings() {
   const [models, setModels] = useState<SelectOption[] | null>([]);
   const [modelsError, setModelsError] = useState("");
-  const [access, setAccess] = useState<boolean | null>(null); // null = unknown/not checked
   const [testMsg, setTestMsg] = useState("");
   const [testing, setTesting] = useState(false);
+  const [allowMsg, setAllowMsg] = useState("");
+  // What's in the address box while typing. Kept apart from the saved value so
+  // it can be cleared; an empty address falls back to the preset's default.
+  const [addressDraft, setAddressDraft] = useState<string | null>(null);
+  const access = appState.providerAccess.value; // null = not checked yet
 
   const providerId = appState.providerId.value;
   const preset = currentPreset();
   const config = providerConfig();
   const savedKey = appState.providerSettings.value.apiKeys[providerId] ?? "";
   const savedModel = appState.providerSettings.value.models[providerId] ?? "";
-  const address = appState.providerSettings.value.baseUrls[providerId] ?? preset.baseUrl;
+  const address = addressDraft ?? appState.providerSettings.value.baseUrls[providerId] ?? preset.baseUrl;
 
   // Each refresh gets a number; a result that comes back after a newer refresh
   // started (e.g. the user switched provider mid-load) is dropped.
@@ -49,30 +52,40 @@ export function Settings() {
     setModels(null);
     const res = await loadModelList(appState.providerId.value);
     if (mine !== lastRefresh.current) return;
-    setAccess(res.access);
+    appState.providerAccess.value = res.access;
     setModels(res.models.map((m) => ({ id: m.id, label: m.label })));
     setModelsError(res.error);
   }
 
   useEffect(() => {
+    setAddressDraft(null);
+    setAllowMsg("");
     refresh();
   }, [providerId]);
 
   async function onAllow() {
+    setAllowMsg("");
     // Must run straight from the click: Chrome only shows the prompt for a user gesture.
-    const granted = await requestAccess(config.baseUrl);
-    setAccess(granted);
-    if (granted) refresh();
+    try {
+      const granted = await requestAccess(config.baseUrl);
+      appState.providerAccess.value = granted;
+      if (granted) refresh();
+      else setAllowMsg("Chrome didn't grant access. Click Allow access to try again.");
+    } catch (e) {
+      setAllowMsg(`Couldn't ask Chrome for access: ${(e as Error).message}`);
+    }
   }
 
   async function onTest() {
     setTesting(true);
     setTestMsg("");
     try {
-      const res = await fetch(currentAdapter().testRequest(config));
-      setTestMsg(res.ok ? "Connected ✓" : describeProviderError(config.label, res.status, await res.text()));
-    } catch {
-      setTestMsg(`Can't reach ${config.baseUrl}. Is the server running?`);
+      // Same checks as the model list: HTTP errors, unreachable server, and a
+      // 200 that isn't JSON (an HTML page from a wrong address) all fail here.
+      await fetchModelsJson(config, currentAdapter().testRequest(config));
+      setTestMsg("Connected ✓");
+    } catch (e) {
+      setTestMsg((e as Error).message);
     } finally {
       setTesting(false);
     }
@@ -93,6 +106,8 @@ export function Settings() {
       : []),
     ...models
   ];
+  // Testing only needs the server and key, not a picked model.
+  const canTest = access === true && isValidAddress(config.baseUrl) && !(preset.key === "required" && !config.apiKey);
   // Fall back to typing a model name when the server is reachable but its list failed or came back empty.
   const showModelText = access === true && models !== null && models.length === 0 &&
     !(preset.key === "required" && !config.apiKey);
@@ -117,8 +132,12 @@ export function Settings() {
             type="text"
             value={address}
             placeholder="http://localhost:5000/v1"
-            onInput={(e) => saveBaseUrl((e.target as HTMLInputElement).value)}
-            onBlur={() => refresh()}
+            onInput={(e) => {
+              const v = (e.target as HTMLInputElement).value;
+              setAddressDraft(v);
+              saveBaseUrl(v.trim());
+            }}
+            onBlur={() => { setAddressDraft(null); refresh(); }}
           />
         </label>
       )}
@@ -158,8 +177,10 @@ export function Settings() {
         <div class="access-row">
           <p>REACH needs your permission to talk to {hostOf(config.baseUrl)}.</p>
           <button class="primary" onClick={onAllow}>Allow access</button>
+          <p class="hint">If this window closes when Chrome asks, reopen REACH after you allow it.</p>
         </div>
       )}
+      {allowMsg && <p class="error">{allowMsg}</p>}
 
       {showModelText ? (
         <label>
@@ -192,7 +213,7 @@ export function Settings() {
         </p>
       )}
 
-      <button class="primary" disabled={testing || !providerReady() || access === false} onClick={onTest}>
+      <button class="primary" disabled={testing || !canTest} onClick={onTest}>
         {testing ? "Testing…" : "Test connection"}
       </button>
       {testMsg && <p class="test-msg">{testMsg}</p>}

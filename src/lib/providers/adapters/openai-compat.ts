@@ -7,8 +7,8 @@ import { fetchModelsJson } from "../types";
 // changes don't break it:
 //  - send only `model` + `messages`. temperature / max_tokens / reasoning
 //    settings are what differ between providers and models.
-//  - read only `message.content` and strip inline <think> blocks that some
-//    local reasoning models emit. Separate reasoning fields are ignored.
+//  - read only `message.content` and strip inline <think> blocks (or a lone
+//    </think>) that some local reasoning models emit. Separate reasoning fields are ignored.
 
 function headers(c: ProviderConfig): Record<string, string> {
   return {
@@ -19,7 +19,9 @@ function headers(c: ProviderConfig): Record<string, string> {
 }
 
 function stripThinking(text: string): string {
-  return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  // Some chat templates put the opening <think> in the prompt, so the reply
+  // carries only the closing tag: everything before it is reasoning.
+  return text.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^[\s\S]*?<\/think>/, "").trim();
 }
 
 function contentText(raw: unknown): string {

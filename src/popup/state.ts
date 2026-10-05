@@ -31,6 +31,8 @@ export const appState = {
   providerId: signal<string>(DEFAULT_PRESET_ID),
   /** Keys, addresses and models saved per preset id. */
   providerSettings: signal<ProviderSettings>({ apiKeys: {}, baseUrls: {}, models: {} }),
+  /** Whether Chrome has granted the selected provider's host. null = not checked yet. */
+  providerAccess: signal<boolean | null>(null),
   summary: signal<ProjectSummary | null>(null),
   status: signal<string>(""),
   githubConnected: signal<boolean>(false)
@@ -57,20 +59,19 @@ export function providerReady(): boolean {
 
 const NOT_READY = "Set up your AI provider in Settings first.";
 
+/** Re-checks host access for the selected provider and records it in appState. */
+async function checkProviderAccess(): Promise<boolean> {
+  const id = appState.providerId.value;
+  const granted = await hasAccess(providerConfig().baseUrl);
+  if (appState.providerId.value === id) appState.providerAccess.value = granted;
+  return granted;
+}
+
 /** Why a model call can't run right now, or null when it can. */
 async function providerPreflight(): Promise<string | null> {
   if (!providerReady()) return NOT_READY;
-  const { baseUrl } = providerConfig();
-  if (!(await hasAccess(baseUrl))) return `Allow REACH to reach ${hostOf(baseUrl)} in Settings.`;
+  if (!(await checkProviderAccess())) return `Allow REACH to reach ${hostOf(providerConfig().baseUrl)} in Settings.`;
   return null;
-}
-
-/** Checks the provider's host permission; on failure explains it in the status line. */
-export async function ensureProviderAccess(): Promise<boolean> {
-  const { baseUrl } = providerConfig();
-  if (await hasAccess(baseUrl)) return true;
-  appState.status.value = `Allow REACH to reach ${hostOf(baseUrl)} in Settings.`;
-  return false;
 }
 
 export async function hydrate(): Promise<void> {
@@ -89,6 +90,7 @@ export async function hydrate(): Promise<void> {
   ]);
   if (provider) appState.providerId.value = provider;
   appState.providerSettings.value = providerSettings;
+  await checkProviderAccess();
   appState.summary.value = summary ?? null;
   appState.githubConnected.value = !!githubToken; // persists across browser sessions
 
@@ -117,6 +119,7 @@ export async function hydrate(): Promise<void> {
 
 export async function saveProvider(id: string): Promise<void> {
   appState.providerId.value = id;
+  appState.providerAccess.value = null; // Settings re-checks it for the new provider
   await storage.setProvider(id);
 }
 
