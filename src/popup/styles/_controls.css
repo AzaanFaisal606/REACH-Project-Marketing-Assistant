@@ -38,6 +38,9 @@ input, textarea, select {
   border: 1px solid var(--border); border-radius: var(--radius);
   padding: 8px; font-size: var(--fs-12); margin-top: 4px;
 }
+/* No drag handle: dragging it can push the box past the popup edge, where the
+   handle is hidden and the layout can't be fixed. */
+textarea { resize: none; }
 input:focus, textarea:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 label { display: block; font-size: var(--fs-12); color: var(--text-dim); }
 .error { color: var(--error); font-size: var(--fs-12); margin: 4px 0 0; }

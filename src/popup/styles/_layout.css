@@ -1,4 +1,4 @@
-.app { width: 380px; min-height: 480px; display: flex; flex-direction: column; }
+.app { width: 360px; min-height: var(--popup-height, 520px); display: flex; flex-direction: column; }
 
 .app-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -24,7 +24,15 @@
   font-size: 10px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;
   background: var(--surface-2); padding: 2px 7px; border-radius: var(--radius-pill);
 }
-.gear { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; padding: 4px; line-height: 1; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+/* same height and pill surface as .provider-chip so the two line up */
+.gear {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: var(--header-pill-h); height: var(--header-pill-h); padding: 0;
+  background: var(--surface-2); border: none; border-radius: var(--radius-pill);
+  color: var(--text-dim); cursor: pointer;
+}
+.gear svg { width: 15px; height: 15px; display: block; }
 .gear:hover { color: var(--text); }
 
 .body { padding: 14px; display: flex; flex-direction: column; gap: 13px; }

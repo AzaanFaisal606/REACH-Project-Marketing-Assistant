@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { storage } from "@/lib/storage/storage";
+import { memoryArea } from "@/test-utils/storage-area";
 
 beforeEach(() => {
   const data: Record<string, unknown> = {};
   (globalThis as any).chrome = {
-    storage: { local: {
+    storage: { session: memoryArea(), local: {
       get: vi.fn(async (k: string[]) => Object.fromEntries(k.map((x) => [x, data[x]]))),
       set: vi.fn(async (o: Record<string, unknown>) => { Object.assign(data, o); }),
       remove: vi.fn(async (x: string | string[]) => { for (const key of [x].flat()) delete data[key]; })

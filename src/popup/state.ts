@@ -76,6 +76,7 @@ async function providerPreflight(): Promise<string | null> {
 
 export async function hydrate(): Promise<void> {
   await migrateLegacySettings();
+  await storage.clearLegacyLocalSession();
   const [provider, providerSettings, summary, githubToken, session, liDraft, liFounder, xTone, xFormatMode, xSession] = await Promise.all([
     storage.getProvider(),
     storage.getProviderSettings(),

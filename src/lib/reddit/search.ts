@@ -1,5 +1,4 @@
 import type { SubredditCandidate } from "./rank";
-import dataset from "./data/subreddits.json";
 
 // OFFLINE COMMUNITY SEARCH.
 //
@@ -26,8 +25,6 @@ interface RawSub {
   description: string;
   subscribers: number;
 }
-
-const SUBS = dataset as RawSub[];
 
 const MAX_KEYWORD_QUERIES = 6;
 // Return a pool wide enough for rankSubreddits + the AI rerank to pick a good
@@ -67,12 +64,27 @@ interface IndexedSub {
   descWords: Set<string>;
 }
 
-const INDEX: IndexedSub[] = SUBS.map((sub) => ({
-  sub,
-  nameWords: wordSet(sub.name),
-  titleWords: wordSet(sub.title),
-  descWords: wordSet(sub.description)
-}));
+// The dataset is ~7.5 MB, so it's loaded on the first search (dynamic import →
+// its own chunk) instead of with the popup. The promise is cached, so the file
+// is fetched and indexed once per popup session. A failed load is not cached.
+let indexPromise: Promise<IndexedSub[]> | null = null;
+
+function loadIndex(): Promise<IndexedSub[]> {
+  indexPromise ??= import("./data/subreddits.json")
+    .then((mod) =>
+      (mod.default as RawSub[]).map((sub) => ({
+        sub,
+        nameWords: wordSet(sub.name),
+        titleWords: wordSet(sub.title),
+        descWords: wordSet(sub.description)
+      }))
+    )
+    .catch((err) => {
+      indexPromise = null;
+      throw err;
+    });
+  return indexPromise;
+}
 
 // Relevance weights: a keyword landing in the sub's NAME is a much stronger
 // signal than in its blurb. This is what keeps r/MachineLearning above
@@ -105,8 +117,7 @@ function toCandidate(s: RawSub): SubredditCandidate {
   };
 }
 
-// Synchronous under the hood, but kept async to preserve the call site
-// (`await searchSubreddits(...)`) and signature exactly.
+// Async because the dataset is loaded lazily on first use (see loadIndex).
 export async function searchSubreddits(keywords: string[]): Promise<SubredditCandidate[]> {
   const queries = keywords.map((k) => k.trim()).filter(Boolean).slice(0, MAX_KEYWORD_QUERIES);
   if (queries.length === 0) return [];
@@ -117,8 +128,9 @@ export async function searchSubreddits(keywords: string[]): Promise<SubredditCan
   const tokens = [...new Set(queries.flatMap(tokenize))];
   if (tokens.length === 0) return [];
 
+  const index = await loadIndex();
   const scored: { item: IndexedSub; score: number }[] = [];
-  for (const item of INDEX) {
+  for (const item of index) {
     const score = relevance(item, tokens);
     if (score > 0) scored.push({ item, score });
   }

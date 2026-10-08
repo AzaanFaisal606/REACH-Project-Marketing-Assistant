@@ -13,7 +13,7 @@ export function LinkedInTab() {
       <textarea
         class="user-prompt"
         rows={2}
-        placeholder="User Prompt (Optional) — e.g. target audience, angle, or tone"
+        placeholder="User Prompt (Optional)"
         value={linkedin.userPrompt.value}
         onInput={(e) => (linkedin.userPrompt.value = (e.target as HTMLTextAreaElement).value)}
       />

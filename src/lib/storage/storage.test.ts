@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { storage } from "./storage";
+import { memoryArea } from "@/test-utils/storage-area";
 
 // Minimal chrome.storage.local mock
 beforeEach(() => {
   const data: Record<string, unknown> = {};
   (globalThis as any).chrome = {
     storage: {
+      session: memoryArea(),
       local: {
         get: vi.fn(async (keys: string[]) =>
           Object.fromEntries(keys.map((k) => [k, data[k]]))),
@@ -88,5 +90,21 @@ describe("storage", () => {
     await storage.setRedditSession({ candidates: [], selected: null, rules: [] });
     await storage.clearRedditSession();
     expect(await storage.getRedditSession()).toBeNull();
+  });
+  it("keeps work in progress in session storage, settings in local", async () => {
+    await storage.setRedditSession({ candidates: [], selected: "webdev", rules: [] });
+    await storage.setLinkedinDraft("post");
+    await storage.setProvider("openai");
+    expect(await chrome.storage.local.get(["redditSession", "linkedinDraft"])).toEqual({ redditSession: undefined, linkedinDraft: undefined });
+    expect((await chrome.storage.session.get(["linkedinDraft"])).linkedinDraft).toBe("post");
+    expect((await chrome.storage.local.get(["provider"])).provider).toBe("openai");
+  });
+  it("clears work in progress that older versions left in local storage", async () => {
+    await chrome.storage.local.set({ summary: { valueProp: "x" }, xSession: {}, provider: "openai" });
+    await storage.clearLegacyLocalSession();
+    const left = await chrome.storage.local.get(["summary", "xSession", "provider"]);
+    expect(left.summary).toBeUndefined();
+    expect(left.xSession).toBeUndefined();
+    expect(left.provider).toBe("openai");
   });
 });

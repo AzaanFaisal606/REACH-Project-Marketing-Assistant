@@ -22,7 +22,7 @@ export function XTab() {
       <textarea
         class="user-prompt"
         rows={2}
-        placeholder="User Prompt (Optional) — e.g. target audience, angle, or emphasis"
+        placeholder="User Prompt (Optional)"
         value={x.userPrompt.value}
         onInput={(e) => (x.userPrompt.value = (e.target as HTMLTextAreaElement).value)}
       />

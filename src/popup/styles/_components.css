@@ -2,7 +2,8 @@
 .provider-chip {
   font-family: var(--font-display);
   font-size: var(--fs-12); color: var(--accent);
-  background: var(--surface-2); padding: 3px 8px; border-radius: var(--radius-pill);
+  display: inline-flex; align-items: center; height: var(--header-pill-h);
+  background: var(--surface-2); padding: 0 10px; border-radius: var(--radius-pill);
 }
 
 /* horizontal divider — a decorative amber wave rule (see WaveDivider.tsx). The
@@ -142,9 +143,6 @@
    pair reads as one warning block. */
 .caution + .caution { margin-top: -6px; }
 
-/* Optional user-prompt steering field before Generate. */
-.user-prompt { resize: vertical; }
-
 /* inline alert/error box for the Reddit flow */
 .alert-box {
   font-size: var(--fs-12); color: var(--error);
@@ -156,6 +154,8 @@
 .draft-editor { display: flex; flex-direction: column; gap: 11px; }
 .draft-editor .count { color: var(--accent); font-variant-numeric: tabular-nums; }
 .draft-editor .count.over { color: var(--error); }
+/* Title wraps like the body instead of scrolling sideways; height follows the text. */
+.draft-title { overflow: hidden; line-height: 1.4; }
 .draft-actions { display: flex; gap: 7px; align-items: stretch; }
 /* Option C row: regen is a fixed icon square; the text buttons (platform-open + primary)
    share the remaining width equally. */

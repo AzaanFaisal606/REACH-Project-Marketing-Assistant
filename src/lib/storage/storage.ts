@@ -48,6 +48,19 @@ const KEYS = {
   xSession: "xSession"
 } as const;
 
+// Work in progress (analysis, drafts, picked subs) lives in session storage, so
+// it survives closing the popup but is cleared when the browser closes.
+// Settings, keys and preferences stay in local storage.
+const SESSION_KEYS = [KEYS.summary, KEYS.drafts, KEYS.redditSession, KEYS.linkedinDraft, KEYS.xSession];
+
+async function getSession<T>(key: string): Promise<T | undefined> {
+  const res = await chrome.storage.session.get([key]);
+  return res[key] as T | undefined;
+}
+async function setSession(key: string, value: unknown): Promise<void> {
+  await chrome.storage.session.set({ [key]: value });
+}
+
 async function getRaw<T>(key: string): Promise<T | undefined> {
   const res = await chrome.storage.local.get([key]);
   return res[key] as T | undefined;
@@ -82,6 +95,10 @@ function readKey(stored: string): string {
 }
 
 export const storage = {
+  /** Drop work-in-progress that older versions kept in local storage. */
+  async clearLegacyLocalSession(): Promise<void> {
+    await chrome.storage.local.remove(SESSION_KEYS);
+  },
   async getProvider(): Promise<string | undefined> {
     const raw = await getRaw<string>(KEYS.provider);
     return raw && getPreset(raw) ? raw : undefined;
@@ -111,19 +128,19 @@ export const storage = {
     await setEntry(KEYS.models, id, model);
   },
   async getSummary(): Promise<ProjectSummary | undefined> {
-    const raw = await getRaw<unknown>(KEYS.summary);
+    const raw = await getSession<unknown>(KEYS.summary);
     return looksLikeSummary(raw) ? raw : undefined;
   },
   async setSummary(s: ProjectSummary): Promise<void> {
-    await setRaw(KEYS.summary, s);
+    await setSession(KEYS.summary, s);
   },
   async getDrafts(): Promise<Record<string, { title: string; body: string }>> {
-    return (await getRaw<Record<string, { title: string; body: string }>>(KEYS.drafts)) ?? {};
+    return (await getSession<Record<string, { title: string; body: string }>>(KEYS.drafts)) ?? {};
   },
   async setDraft(sub: string, draft: { title: string; body: string }): Promise<void> {
     const all = await this.getDrafts();
     all[sub] = draft;
-    await setRaw(KEYS.drafts, all);
+    await setSession(KEYS.drafts, all);
   },
   async getGithubToken(): Promise<string> {
     return deobfuscate((await getRaw<string>(KEYS.githubToken)) ?? "");
@@ -132,22 +149,22 @@ export const storage = {
     await setRaw(KEYS.githubToken, obfuscate(token));
   },
   async getRedditSession(): Promise<RedditSession | null> {
-    return (await getRaw<RedditSession>(KEYS.redditSession)) ?? null;
+    return (await getSession<RedditSession>(KEYS.redditSession)) ?? null;
   },
   async setRedditSession(session: RedditSession): Promise<void> {
-    await setRaw(KEYS.redditSession, session);
+    await setSession(KEYS.redditSession, session);
   },
   async clearRedditSession(): Promise<void> {
-    await chrome.storage.local.remove(KEYS.redditSession);
+    await chrome.storage.session.remove(KEYS.redditSession);
   },
   async getLinkedinDraft(): Promise<string | null> {
-    return (await getRaw<string>(KEYS.linkedinDraft)) ?? null;
+    return (await getSession<string>(KEYS.linkedinDraft)) ?? null;
   },
   async setLinkedinDraft(post: string): Promise<void> {
-    await setRaw(KEYS.linkedinDraft, post);
+    await setSession(KEYS.linkedinDraft, post);
   },
   async clearLinkedinDraft(): Promise<void> {
-    await chrome.storage.local.remove(KEYS.linkedinDraft);
+    await chrome.storage.session.remove(KEYS.linkedinDraft);
   },
   async getLinkedinFounderMode(): Promise<boolean> {
     return (await getRaw<boolean>(KEYS.linkedinFounderMode)) ?? false;
@@ -172,12 +189,12 @@ export const storage = {
     await setRaw(KEYS.xFormatMode, m);
   },
   async getXSession(): Promise<XSession | null> {
-    return (await getRaw<XSession>(KEYS.xSession)) ?? null;
+    return (await getSession<XSession>(KEYS.xSession)) ?? null;
   },
   async setXSession(s: XSession): Promise<void> {
-    await setRaw(KEYS.xSession, s);
+    await setSession(KEYS.xSession, s);
   },
   async clearXSession(): Promise<void> {
-    await chrome.storage.local.remove(KEYS.xSession);
+    await chrome.storage.session.remove(KEYS.xSession);
   }
 };
